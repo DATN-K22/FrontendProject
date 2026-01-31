@@ -57,18 +57,18 @@ export default function LoginPage() {
     try {
       if (!validateForm()) return;
 
-      const res: ApiResponse = await api.post("/auth/login", {
+      const res: ApiResponse = await api.post("/auth/signin", {
         email,
         password,
       });
 
-      const { accessToken, role, user } = res.data.data;
+      const { accessToken, role } = res.data.data;
 
       if (!accessToken) {
         throw new Error("Login failed: no token returned");
       }
 
-      authUtils.setAuth(accessToken, role, user, rememberMe);
+      authUtils.setAuth(accessToken, role, rememberMe);
 
       if (role === "admin") {
         window.location.href = "/admin";

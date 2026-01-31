@@ -86,12 +86,30 @@ export default function RegisterPage() {
     if (!validateForm()) return;
 
     try {
-    } catch (error: any) {
-      console.error("Login error:", error);
+      const res = await api.post("/auth/signup", {
+        email,
+        password,
+        first_name: firstName,
+        last_name: lastName,
+      });
 
-      const message =
-        error.response?.data?.message ||
-        "Login failed. Please check your credentials.";
+      const { accessToken, role } = res.data.data;
+
+      if (!accessToken) {
+        throw new Error("Login failed: no token returned");
+      }
+
+      authUtils.setAuth(accessToken, role);
+
+      if (role === "admin") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = "/";
+      }
+    } catch (error: any) {
+      console.error("Register error:", error);
+
+      const message = error.response?.data?.message || "Register failed!";
 
       alert(message);
     }
@@ -416,7 +434,7 @@ export default function RegisterPage() {
                   fullWidth
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="Enter your Password again"
-                  value={password}
+                  value={confirmPassword}
                   error={!!errors.confirmPassword}
                   helperText={errors.confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}

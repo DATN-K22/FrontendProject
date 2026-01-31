@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL:  import.meta.url,
-  withCredentials: false,
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  withCredentials: true, 
 });
 
 // Request interceptor: automatically add Authorization token to requests

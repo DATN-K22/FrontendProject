@@ -3,8 +3,8 @@ export const authUtils = {
   setAuth: (
     token: string,
     userRole: string,
-    userData: Record<string, any> = {},
-    rememberMe: boolean
+    // userData: Record<string, any> = {},
+    rememberMe: boolean = false
   ) => {
     if (typeof window === "undefined") return;
 
@@ -12,7 +12,7 @@ export const authUtils = {
 
     storage.setItem("accessToken", token);
     storage.setItem("userRole", userRole);
-    storage.setItem("userData", JSON.stringify(userData));
+    // storage.setItem("userData", JSON.stringify(userData));
   },
 
   getAuth: () => {
