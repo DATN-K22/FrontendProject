@@ -7,8 +7,6 @@ import {
   TextField,
   Button,
   Typography,
-  Checkbox,
-  FormControlLabel,
   Link,
   InputAdornment,
   IconButton,
@@ -19,33 +17,64 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import api from "@/api/api";
 import { authUtils } from "@/utils/auth";
 import { useRouter } from "next/navigation";
-import { ApiResponse } from "@/utils/dto/ApiResponse";
 
-type FormErrors = {
-  email?: string;
+type RegisterResponse = {
+  success: boolean;
+  code: number;
+  message: string;
+  timestamp: string;
+  data: any;
 };
 
-export default function LoginPage() {
+export type FormErrors = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+};
+
+export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [activeTab, setActiveTab] = useState<"login" | "register">("register");
   const router = useRouter();
   const [errors, setErrors] = useState<FormErrors>({});
 
-  const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
-  };
-
   const validateForm = () => {
     const newErrors: FormErrors = {};
+
+    if (!firstName.trim()) {
+      newErrors.firstName = "First name is required";
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = "Last name is required";
+    }
 
     if (!email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^\S+@\S+\.\S+$/.test(email)) {
       newErrors.email = "Email is not valid";
     }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+    } else if (password.length < 5) {
+      newErrors.password = "Password must be at least 5 characters";
+    }
+
+    if (!confirmPassword) {
+      newErrors.confirmPassword = "Confirm password is required";
+    } else if (confirmPassword !== password) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
@@ -54,27 +83,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!validateForm()) return;
+
     try {
-      if (!validateForm()) return;
-
-      const res: ApiResponse = await api.post("/auth/login", {
-        email,
-        password,
-      });
-
-      const { accessToken, role, user } = res.data.data;
-
-      if (!accessToken) {
-        throw new Error("Login failed: no token returned");
-      }
-
-      authUtils.setAuth(accessToken, role, user, rememberMe);
-
-      if (role === "admin") {
-        window.location.href = "/admin";
-      } else {
-        window.location.href = "/";
-      }
     } catch (error: any) {
       console.error("Login error:", error);
 
@@ -87,7 +98,7 @@ export default function LoginPage() {
   };
 
   return (
-    <Slide direction="left" in mountOnEnter unmountOnExit>
+    <Slide direction="right" in mountOnEnter unmountOnExit>
       <Box
         sx={{
           minHeight: "100vh",
@@ -104,40 +115,6 @@ export default function LoginPage() {
           alignItems="center"
           sx={{ width: "100%" }}
         >
-          {/* Left side - Illustration (hidden on mobile) */}
-          <Grid
-            size={{ xs: 12, md: 6 }}
-            sx={{
-              display: { xs: "none", md: "flex" },
-              justifyContent: "center",
-            }}
-          >
-            <Box
-              sx={{
-                bgcolor: "#FFF59B",
-                borderRadius: "2em",
-                width: "100%",
-                maxWidth: "600px",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Box
-                component="img"
-                src="/images/login.png"
-                alt="Learning illustration"
-                sx={{
-                  maxHeight: { md: "40em", lg: "50em" },
-                  height: "auto",
-                  width: "100%",
-                  objectFit: "contain",
-                }}
-              />
-            </Box>
-          </Grid>
-
-          {/* Right side - Form */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Box
               sx={{
@@ -152,7 +129,7 @@ export default function LoginPage() {
                 gutterBottom
                 sx={{
                   fontWeight: 600,
-                  mb: { xs: 2, md: 3 },
+                  mb: { xs: 1, md: 1.5 },
                   fontSize: { xs: "1.5rem", sm: "1.75rem", md: "2rem" },
                 }}
               >
@@ -174,7 +151,10 @@ export default function LoginPage() {
                 }}
               >
                 <Button
-                  onClick={() => setActiveTab("login")}
+                  onClick={() => {
+                    router.replace("/auth/login");
+                    setActiveTab("login");
+                  }}
                   sx={{
                     borderRadius: { xs: 4, md: 8 },
                     backgroundColor:
@@ -197,7 +177,6 @@ export default function LoginPage() {
                 </Button>
                 <Button
                   onClick={() => {
-                    router.replace("/auth/register");
                     setActiveTab("register");
                   }}
                   sx={{
@@ -222,7 +201,7 @@ export default function LoginPage() {
                 </Button>
               </Box>
 
-              <Typography
+              {/* <Typography
                 variant="h6"
                 color="text.secondary"
                 sx={{
@@ -233,9 +212,100 @@ export default function LoginPage() {
               >
                 Learnaide is AI-Powered Online Learning Platform with
                 Personalized Course Paths and Virtual Assistant
-              </Typography>
+              </Typography> */}
 
               <form onSubmit={handleSubmit}>
+                <Grid
+                  container
+                  spacing={{ xs: 2, md: 4 }}
+                  alignItems="stretch"
+                  sx={{ width: "100%" }}
+                >
+                  <Grid size={6}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        mb: 1,
+                        fontWeight: 600,
+                        fontSize: { xs: "0.875rem", md: "1rem" },
+                      }}
+                    >
+                      First Name
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="Enter your First Name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      error={!!errors.firstName}
+                      helperText={errors.firstName}
+                      sx={{
+                        mb: { xs: 1, md: 1.5 },
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: { xs: 4, md: 8 },
+                          fontSize: { xs: "0.875rem", md: "1rem" },
+                          "& fieldset": {
+                            borderColor: "#FFD700",
+                            borderWidth: 2,
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "#FFD700",
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#FFD700",
+                          },
+                          "& .MuiOutlinedInput-input": {
+                            py: { xs: 1.5, md: 2 },
+                            px: { xs: 2, md: 3 },
+                          },
+                        },
+                      }}
+                    />
+                  </Grid>
+
+                  <Grid size={6}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{
+                        mb: 1,
+                        fontWeight: 600,
+                        fontSize: { xs: "0.875rem", md: "1rem" },
+                      }}
+                    >
+                      Last Name
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder="Enter your Last Name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      error={!!errors.lastName}
+                      helperText={errors.lastName}
+                      sx={{
+                        mb: { xs: 1, md: 1.5 },
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: { xs: 4, md: 8 },
+                          fontSize: { xs: "0.875rem", md: "1rem" },
+                          "& fieldset": {
+                            borderColor: "#FFD700",
+                            borderWidth: 2,
+                          },
+                          "&:hover fieldset": {
+                            borderColor: "#FFD700",
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: "#FFD700",
+                          },
+                          "& .MuiOutlinedInput-input": {
+                            py: { xs: 1.5, md: 2 },
+                            px: { xs: 2, md: 3 },
+                          },
+                        },
+                      }}
+                    />
+                  </Grid>
+                </Grid>
+
                 <Typography
                   variant="subtitle1"
                   sx={{
@@ -244,17 +314,17 @@ export default function LoginPage() {
                     fontSize: { xs: "0.875rem", md: "1rem" },
                   }}
                 >
-                  User name or Email Address
+                  Email Address
                 </Typography>
                 <TextField
                   fullWidth
-                  placeholder="Enter your User name or Email Address"
+                  placeholder="Enter your Email Address"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   error={!!errors.email}
                   helperText={errors.email}
+                  onChange={(e) => setEmail(e.target.value)}
                   sx={{
-                    mb: { xs: 2, md: 3 },
+                    mb: { xs: 1, md: 1.5 },
                     "& .MuiOutlinedInput-root": {
                       borderRadius: { xs: 4, md: 8 },
                       fontSize: { xs: "0.875rem", md: "1rem" },
@@ -291,12 +361,72 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your Password"
                   value={password}
+                  error={!!errors.password}
+                  helperText={errors.password}
                   onChange={(e) => setPassword(e.target.value)}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
-                          onClick={handleClickShowPassword}
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                          sx={{
+                            p: { xs: 0.5, md: 1 },
+                          }}
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    mb: 2,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: { xs: 4, md: 8 },
+                      fontSize: { xs: "0.875rem", md: "1rem" },
+                      "& fieldset": {
+                        borderColor: "#FFD700",
+                        borderWidth: 2,
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "#FFD700",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#FFD700",
+                      },
+                      "& .MuiOutlinedInput-input": {
+                        py: { xs: 1.5, md: 2 },
+                        px: { xs: 2, md: 3 },
+                      },
+                    },
+                  }}
+                />
+
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    mb: 1,
+                    fontWeight: 600,
+                    fontSize: { xs: "0.875rem", md: "1rem" },
+                  }}
+                >
+                  Confirm Password
+                </Typography>
+                <TextField
+                  fullWidth
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Enter your Password again"
+                  value={password}
+                  error={!!errors.confirmPassword}
+                  helperText={errors.confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
                           edge="end"
                           sx={{
                             p: { xs: 0.5, md: 1 },
@@ -334,44 +464,19 @@ export default function LoginPage() {
                   sx={{
                     display: "flex",
                     flexDirection: { xs: "column", sm: "row" },
-                    justifyContent: "space-between",
-                    alignItems: { xs: "flex-start", sm: "center" },
-                    mb: { xs: 2, md: 3 },
+                    justifyContent: "flex-end",
+                    alignItems: "flex-end",
+                    mb: { xs: 1, md: 1.5 },
                     gap: { xs: 1, sm: 0 },
                   }}
                 >
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        sx={{
-                          color: "#FFD700",
-                          "&.Mui-checked": {
-                            color: "#FFD700",
-                          },
-                        }}
-                      />
-                    }
-                    label={
-                      <Typography
-                        sx={{
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                          fontWeight: 600,
-                        }}
-                      >
-                        Remember me
-                      </Typography>
-                    }
-                  />
                   <Link
-                    href="#"
+                    href="/forgot-password"
                     underline="hover"
                     sx={{
                       color: "text.primary",
                       fontSize: { xs: "0.875rem", md: "1rem" },
-                      fontWeight: "600",
-                      ml: { xs: 4, sm: 0 },
+                      fontWeight: 600,
                     }}
                   >
                     Forgot Password?
@@ -395,9 +500,42 @@ export default function LoginPage() {
                     },
                   }}
                 >
-                  Login
+                  Register
                 </Button>
               </form>
+            </Box>
+          </Grid>
+
+          {/* Right side - Form */}
+          <Grid
+            size={{ xs: 12, md: 6 }}
+            sx={{
+              display: { xs: "none", md: "flex" },
+              justifyContent: "center",
+            }}
+          >
+            <Box
+              sx={{
+                bgcolor: "#FFF59B",
+                borderRadius: "2em",
+                width: "100%",
+                maxWidth: "600px",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Box
+                component="img"
+                src="/images/register.png"
+                alt="Learning illustration"
+                sx={{
+                  maxHeight: { md: "40em", lg: "50em" },
+                  height: "auto",
+                  width: "100%",
+                  objectFit: "contain",
+                }}
+              />
             </Box>
           </Grid>
         </Grid>
