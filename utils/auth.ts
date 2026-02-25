@@ -1,22 +1,23 @@
-// authUtils.ts - Keep as utility functions only
+import api from "@/api/api";
+import { ApiResponse } from "./dto/ApiResponse";
+
 export const authUtils = {
   setAuth: (
     token: string,
     userRole: string,
     // userData: Record<string, any> = {},
-    rememberMe: boolean = false
+    rememberMe: boolean = false,
   ) => {
     if (typeof window === "undefined") return;
 
     const storage = rememberMe ? localStorage : sessionStorage;
-
+    console.log("Setting auth with token:", token, "and role:", userRole);
     storage.setItem("accessToken", token);
     storage.setItem("userRole", userRole);
-    // storage.setItem("userData", JSON.stringify(userData));
   },
 
   getAuth: () => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return { token: null, userRole: null, userData: {} };
     }
     const token = localStorage.getItem("accessToken");
@@ -26,26 +27,11 @@ export const authUtils = {
   },
 
   clearAuth: () => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       localStorage.removeItem("accessToken");
       localStorage.removeItem("userRole");
       localStorage.removeItem("userData");
       localStorage.removeItem("user");
     }
-  },
-
-  isAdmin: () => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem("userRole") === "admin";
-  },
-
-  isAuthenticated: () => {
-    if (typeof window === 'undefined') return false;
-    return !!localStorage.getItem("accessToken");
-  },
-
-  hasRole: (role: string) => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem("userRole") === role;
   },
 };

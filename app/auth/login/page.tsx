@@ -17,12 +17,13 @@ import {
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import api from "@/api/api";
-import { authUtils } from "@/utils/auth";
 import { useRouter } from "next/navigation";
 import { ApiResponse } from "@/utils/dto/ApiResponse";
+import { useUser } from "@/context/userContext";
 
 type FormErrors = {
   email?: string;
+  password?: string;
 };
 
 export default function LoginPage() {
@@ -33,7 +34,7 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const router = useRouter();
   const [errors, setErrors] = useState<FormErrors>({});
-
+  const { login } = useUser();
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
   };
@@ -46,6 +47,10 @@ export default function LoginPage() {
     } else if (!/^\S+@\S+\.\S+$/.test(email)) {
       newErrors.email = "Email is not valid";
     }
+
+    if (!password.trim()) {
+      newErrors.password = "Password is required";
+    }
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
@@ -56,24 +61,21 @@ export default function LoginPage() {
 
     try {
       if (!validateForm()) return;
-
       const res: ApiResponse = await api.post("/auth/signin", {
         email,
         password,
       });
-
-      const { accessToken, role } = res.data.data;
-
+      const { accessToken, user } = res.data.data;
       if (!accessToken) {
         throw new Error("Login failed: no token returned");
       }
 
-      authUtils.setAuth(accessToken, role, rememberMe);
+      login(accessToken, user, rememberMe);
 
-      if (role === "admin") {
-        window.location.href = "/admin";
+      if (user.role === "admin") {
+        router.replace("/authenticated/admin");
       } else {
-        window.location.href = "/";
+        router.replace("/authenticated/homepage");
       }
     } catch (error: any) {
       console.error("Login error:", error);
@@ -291,6 +293,8 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your Password"
                   value={password}
+                  error={!!errors.password}
+                  helperText={errors.password}
                   onChange={(e) => setPassword(e.target.value)}
                   InputProps={{
                     endAdornment: (
