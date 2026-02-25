@@ -1,40 +1,37 @@
+import api from "@/api/api";
+import { ApiResponse } from "./dto/ApiResponse";
+
 export const authUtils = {
-  // Lưu thông tin user sau khi login
-  setAuth: (token: string, userRole: string, userData = {}) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("userRole", userRole);
-    localStorage.setItem("userData", JSON.stringify(userData));
-    localStorage.setItem("user", JSON.stringify(userData));
+  setAuth: (
+    token: string,
+    userRole: string,
+    // userData: Record<string, any> = {},
+    rememberMe: boolean = false,
+  ) => {
+    if (typeof window === "undefined") return;
+
+    const storage = rememberMe ? localStorage : sessionStorage;
+    console.log("Setting auth with token:", token, "and role:", userRole);
+    storage.setItem("accessToken", token);
+    storage.setItem("userRole", userRole);
   },
 
-  // Lấy thông tin user
   getAuth: () => {
-    const token = localStorage.getItem("token");
+    if (typeof window === "undefined") {
+      return { token: null, userRole: null, userData: {} };
+    }
+    const token = localStorage.getItem("accessToken");
     const userRole = localStorage.getItem("userRole");
     const userData = JSON.parse(localStorage.getItem("userData") || "{}");
     return { token, userRole, userData };
   },
 
-  // Xóa thông tin khi logout
   clearAuth: () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userData");
-    localStorage.removeItem("user"); // Also remove "user" key for compatibility
-  },
-
-  // Check có phải admin không
-  isAdmin: () => {
-    return localStorage.getItem("userRole") === "admin";
-  },
-
-  // Check đã login chưa
-  isAuthenticated: () => {
-    return !!localStorage.getItem("token");
-  },
-
-  // Check role
-  hasRole: (role: string) => {
-    return localStorage.getItem("userRole") === role;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("userRole");
+      localStorage.removeItem("userData");
+      localStorage.removeItem("user");
+    }
   },
 };
