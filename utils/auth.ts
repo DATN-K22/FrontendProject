@@ -1,37 +1,40 @@
-import api from "@/api/api";
-import { ApiResponse } from "./dto/ApiResponse";
-
 export const authUtils = {
   setAuth: (
     token: string,
-    userRole: string,
-    // userData: Record<string, any> = {},
+    userData: Record<string, any> = {},
     rememberMe: boolean = false,
   ) => {
     if (typeof window === "undefined") return;
 
     const storage = rememberMe ? localStorage : sessionStorage;
-    console.log("Setting auth with token:", token, "and role:", userRole);
     storage.setItem("accessToken", token);
-    storage.setItem("userRole", userRole);
+    storage.setItem("userData", JSON.stringify(userData));
   },
 
   getAuth: () => {
     if (typeof window === "undefined") {
-      return { token: null, userRole: null, userData: {} };
+      return { token: null, userData: null };
     }
-    const token = localStorage.getItem("accessToken");
-    const userRole = localStorage.getItem("userRole");
-    const userData = JSON.parse(localStorage.getItem("userData") || "{}");
-    return { token, userRole, userData };
+
+    const token =
+      localStorage.getItem("accessToken") ??
+      sessionStorage.getItem("accessToken");
+
+    const userDataRaw =
+      localStorage.getItem("userData") ?? sessionStorage.getItem("userData");
+
+    const userData = userDataRaw ? JSON.parse(userDataRaw) : null;
+
+    return { token, userData };
   },
 
   clearAuth: () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("userData");
-      localStorage.removeItem("user");
-    }
+    if (typeof window === "undefined") return;
+
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("userData");
+
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("userData");
   },
 };

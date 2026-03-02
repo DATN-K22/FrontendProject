@@ -1,36 +1,39 @@
 "use client";
 
-import Header from "@/components/header";
-import Footer from "@/components/footer";
-import { useUser } from "@/context/userContext";
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Header from "@/components/header";
+import Footer from "@/components/footer";
+import { authUtils } from "@/utils/auth";
 
 export default function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useUser();
   const router = useRouter();
   const pathname = usePathname();
 
+  const { token, userData } = authUtils.getAuth();
+
   useEffect(() => {
-    if (!user) {
-      router.replace("/login");
+    if (!token || !userData) {
+      router.replace("/auth/login");
       return;
     }
-    console.log(
-      "AuthenticatedLayout: User role is",
-      user.role,
-      "and pathname is",
-      pathname,
-    );
-    if (pathname.startsWith("/instructor") && user.role !== "instructor") {
+
+    if (pathname.startsWith("/instructor") && userData.role !== "instructor") {
       router.replace("/403");
-      return;
     }
-  }, [user, pathname]);
+  }, [token, userData, pathname, router]);
+
+  if (!token || !userData) {
+    return null;
+  }
+
+  if (pathname.startsWith("/instructor") && userData.role !== "instructor") {
+    return null;
+  }
 
   return (
     <>
