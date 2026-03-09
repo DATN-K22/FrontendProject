@@ -21,6 +21,7 @@ import {
   Rating,
   Chip,
   SvgIcon,
+  ListItemButton,
 } from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
@@ -41,51 +42,13 @@ import {
 } from "@mui/icons-material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useParams, useRouter } from "next/navigation";
-import { useAlert } from "@/components/alert";
+import { useAlert } from "@/components/Alert";
 import api from "@/api/api";
-enum CourseLevel {
-  Beginner = "Beginner",
-  Intermediate = "Intermediate",
-  Advanced = "Advanced",
-  Expert = "Expert",
-  AllLevels = "All Levels",
-}
-
-type Course = {
-  id: string;
-  thumbnail_url: string;
-  title: string;
-  course_level: CourseLevel;
-  short_description: string;
-  long_description: string;
-  created_at: string;
-  user: {
-    name: string;
-    avt_url: string;
-  };
-  rating: number;
-  price: number;
-  isEnrolled: boolean;
-};
-
-type Chapter = {
-  id: string;
-  title: string;
-  short_description: string;
-  status: string;
-  sort_order: number;
-  lessons: Lesson[];
-};
-
-type Lesson = {
-  id: string;
-  title: string;
-  status: string;
-  type: string;
-  sort_order: number;
-  duration?: number;
-  isFinished: boolean;
-};
+import SafeHtml from "@/components/SafeHtml";
+import CircularProgressWithLabel from "@/components/CircularProgressWithLabel";
+import { Course } from "@/utils/dto/Course";
+import { Chapter } from "@/utils/dto/Chapter";
+import { LessonGeneral } from "@/utils/dto/Lesson";
 
 // Helper function to format duration (seconds to mm:ss)
 const formatDuration = (seconds?: number): string => {
@@ -96,7 +59,7 @@ const formatDuration = (seconds?: number): string => {
 };
 
 // Helper function to get icon based on lesson type
-const getLessonIcon = (type: string) => {
+export const getLessonIcon = (type: string) => {
   switch (type.toLowerCase()) {
     case "video":
       return <PlayCircleOutlineIcon sx={{ fontSize: 20, color: "#00bdd5" }} />;
@@ -193,400 +156,20 @@ const getLessonIcon = (type: string) => {
 };
 
 export default function CourseDetail() {
-  const { id } = useParams();
+  const { course_id } = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [course, setCourse] = useState<Course>();
-  const [chapters, setChapters] = useState<{
-    progress: number;
-    chapters: Chapter[];
-  } | null>(null);
   const { showAlert } = useAlert();
 
   useEffect(() => {
-    // // Mock data for testing
-    // const mockCourseData = {
-    //   id: 1,
-    //   thumbnail_url:
-    //     "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800",
-    //   title: "Complete Web Development Bootcamp 2024",
-    //   course_level: CourseLevel.Intermediate,
-    //   short_description:
-    //     "Master modern web development with HTML, CSS, JavaScript, React, Node.js and more in this comprehensive course.",
-    //   long_description:
-    //     "This complete web development bootcamp will take you from beginner to advanced level. You'll learn the latest technologies including HTML5, CSS3, JavaScript ES6+, React, Node.js, Express, MongoDB, and deployment strategies. Build real-world projects and gain the skills needed to become a professional web developer. Perfect for aspiring developers, career changers, and anyone looking to build modern web applications.",
-    //   created_at: "2024-01-15T10:00:00Z",
-    //   user: {
-    //     name: "John Smith",
-    //     avt_url: "https://i.pravatar.cc/150?img=12",
-    //   },
-    //   rating: 4.8,
-    //   price: 49.99,
-    //   progress: 5,
-
-    //   sections: [
-    //     {
-    //       id: 1,
-    //       resource_id: 1,
-    //       title: "Introduction to Web Development",
-    //       short_description: "Get started with the basics",
-    //       long_description: "Learn the fundamentals of web development",
-    //       status: "active",
-    //       sort_order: 1,
-    //       lessons: [
-    //         {
-    //           id: 1,
-    //           title: "Welcome to the Course",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 1,
-    //           duration: 420,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 2,
-    //           title: "How the Web Works",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 2,
-    //           duration: 680,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 3,
-    //           title: "Setting Up Your Development Environment",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 3,
-    //           duration: 540,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 4,
-    //           title: "Course Resources",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "lab",
-    //           sort_order: 4,
-    //           resources: [],
-    //         },
-    //       ],
-    //     },
-    //     {
-    //       id: 2,
-    //       resource_id: 2,
-    //       title: "HTML Fundamentals",
-    //       short_description: "Master HTML5",
-    //       long_description: "Deep dive into HTML5 elements and best practices",
-    //       status: "active",
-    //       sort_order: 2,
-    //       lessons: [
-    //         {
-    //           id: 5,
-    //           title: "HTML Basics and Structure",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 1,
-    //           duration: 720,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 6,
-    //           title: "Working with Text and Links",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 2,
-    //           duration: 600,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 7,
-    //           title: "Images and Multimedia",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 3,
-    //           duration: 480,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 8,
-    //           title: "HTML Forms",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 4,
-    //           duration: 840,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 9,
-    //           title: "HTML5 Semantic Elements",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 5,
-    //           duration: 360,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 10,
-    //           title: "HTML Quiz",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "quiz",
-    //           sort_order: 6,
-    //           resources: [],
-    //         },
-    //       ],
-    //     },
-    //     {
-    //       id: 3,
-    //       resource_id: 3,
-    //       title: "CSS Styling and Layouts",
-    //       short_description: "Style your websites beautifully",
-    //       long_description:
-    //         "Learn CSS3, Flexbox, Grid, and modern styling techniques",
-    //       status: "active",
-    //       sort_order: 3,
-    //       lessons: [
-    //         {
-    //           id: 11,
-    //           title: "CSS Basics and Selectors",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 1,
-    //           duration: 900,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 12,
-    //           title: "Box Model and Positioning",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 2,
-    //           duration: 780,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 13,
-    //           title: "Flexbox Complete Guide",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 3,
-    //           duration: 1200,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 14,
-    //           title: "CSS Grid Layout",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 4,
-    //           duration: 1080,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 15,
-    //           title: "Responsive Design",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 5,
-    //           duration: 960,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 16,
-    //           title: "CSS Cheat Sheet",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "lab",
-    //           sort_order: 6,
-    //           resources: [],
-    //         },
-    //       ],
-    //     },
-    //     {
-    //       id: 4,
-    //       resource_id: 4,
-    //       title: "JavaScript Essentials",
-    //       short_description: "Learn programming with JavaScript",
-    //       long_description:
-    //         "Master JavaScript from basics to advanced concepts",
-    //       status: "active",
-    //       sort_order: 4,
-    //       lessons: [
-    //         {
-    //           id: 17,
-    //           title: "JavaScript Introduction",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 1,
-    //           duration: 540,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 18,
-    //           title: "Variables and Data Types",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 2,
-    //           duration: 720,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 19,
-    //           title: "Functions and Scope",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 3,
-    //           duration: 840,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 20,
-    //           title: "Arrays and Objects",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 4,
-    //           duration: 960,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 21,
-    //           title: "DOM Manipulation",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 5,
-    //           duration: 1140,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 22,
-    //           title: "Event Handling",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 6,
-    //           duration: 780,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 23,
-    //           title: "JavaScript Practice Exercise",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "lab",
-    //           sort_order: 7,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 24,
-    //           title: "JavaScript Fundamentals Quiz",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "quiz",
-    //           sort_order: 8,
-    //           resources: [],
-    //         },
-    //       ],
-    //     },
-    //     {
-    //       id: 5,
-    //       resource_id: 5,
-    //       title: "React Framework",
-    //       short_description: "Build modern UIs with React",
-    //       long_description:
-    //         "Master React, hooks, state management and component architecture",
-    //       status: "active",
-    //       sort_order: 5,
-    //       lessons: [
-    //         {
-    //           id: 25,
-    //           title: "Introduction to React",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 1,
-    //           duration: 600,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 26,
-    //           title: "Components and Props",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 2,
-    //           duration: 900,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 27,
-    //           title: "State and Hooks",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 3,
-    //           duration: 1020,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 28,
-    //           title: "React Router",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 4,
-    //           duration: 780,
-    //           resources: [],
-    //         },
-    //         {
-    //           id: 29,
-    //           title: "API Integration",
-    //           thumbnail_url: "",
-    //           status: "active",
-    //           type: "video",
-    //           sort_order: 5,
-    //           duration: 1200,
-    //           resources: [],
-    //         },
-    //       ],
-    //     },
-    //   ],
-    // };
-
-    // Simulate loading
-
     const fetchCourse = async () => {
       try {
         setLoading(true);
-        // Uncomment below to use real API
-        // const res = await api.get(`/courses/chapters?course_id=${id}`);
-        // setCourse(res.data.data);
-
-        // Using mock data
-        const courseResponse = await api.get(`/courses/course/${id}`);
-        const chapterResponse = await api.get(
-          `/courses/chapters?course_id=${id}`,
+        const courseResponse = await api.get(
+          `/courses/course/${course_id}?include=full`,
         );
         setCourse(courseResponse.data.data);
-        setChapters(chapterResponse.data.data);
       } catch (error) {
         console.error("Error fetching course:", error);
         showAlert("Failed to fetch detail of the course", "error", {
@@ -599,7 +182,13 @@ export default function CourseDetail() {
     };
 
     fetchCourse();
-  }, [id]);
+  }, [course_id]);
+
+  const onCLickLessonHandle = (lessonId: string, type: string) => {
+    if (course?.isEnrolled) {
+      router.replace(`/authenticated/course/${course_id}/${lessonId}`);
+    }
+  };
 
   if (loading || !course) {
     return (
@@ -758,13 +347,6 @@ export default function CourseDetail() {
     );
   }
 
-  // Calculate total lessons
-  // const totalLessons =
-  //   course.sections?.reduce(
-  //     (acc: number, section: Chapter) => acc + (section.lessons?.length || 0),
-  //     0,
-  //   ) || 0;
-
   return (
     <Box sx={{ bgcolor: "#f5f5f5", minHeight: "100vh", py: 4 }}>
       <Box sx={{ pl: 4 }}>
@@ -862,28 +444,9 @@ export default function CourseDetail() {
 
               <Divider sx={{ mb: 2 }} />
 
-              {/* Short Description */}
-              {course.short_description && (
-                <Typography
-                  variant="body1"
-                  color="text.secondary"
-                  sx={{ mb: 2, fontWeight: 500 }}
-                  textAlign="justify"
-                >
-                  {course.short_description}
-                </Typography>
-              )}
-
               {/* Long Description */}
               {course.long_description && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2, lineHeight: 1.7 }}
-                  textAlign="justify"
-                >
-                  {course.long_description}
-                </Typography>
+                <SafeHtml html={course.long_description} />
               )}
             </Paper>
 
@@ -903,12 +466,12 @@ export default function CourseDetail() {
                   }}
                 >
                   <Typography variant="body2" color="text.secondary">
-                    {chapters?.progress} COMPLETED
+                    {course.chapters?.progress}% COMPLETED
                   </Typography>
                 </Box>
                 <LinearProgress
                   variant="determinate"
-                  value={chapters?.progress || 0}
+                  value={course.chapters?.progress || 0}
                   sx={{
                     height: 8,
                     borderRadius: 1,
@@ -921,95 +484,164 @@ export default function CourseDetail() {
               </Box>
 
               {/* Course Chapters/Sections */}
-              {chapters?.chapters?.map((section: Chapter, index: number) => (
-                <Accordion
-                  key={section.id}
-                  sx={{
-                    mb: 1,
-                    "&:before": { display: "none" },
-                    boxShadow: "none",
-                    border: "1px solid #e0e0e0",
-                  }}
-                >
-                  <AccordionSummary
-                    expandIcon={<ExpandMoreIcon />}
+              {course.chapters?.chapters?.map(
+                (section: Chapter, index: number) => (
+                  <Accordion
+                    key={section.id}
                     sx={{
-                      "&:hover": { bgcolor: "#f9f9f9" },
+                      mb: 1,
+                      "&:before": { display: "none" },
+                      boxShadow: "none",
+                      border: "1px solid #e0e0e0",
                     }}
                   >
-                    <Box
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
                       sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        width: "100%",
-                        mr: 2,
+                        "&:hover": { bgcolor: "#f9f9f9" },
                       }}
                     >
-                      <Box>
-                        <Typography fontWeight="500">
-                          {section.title}
-                        </Typography>
-                        {section.short_description && (
-                          <Typography variant="caption" color="text.secondary">
-                            {section.short_description}
-                          </Typography>
-                        )}
-                      </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {section.lessons?.length || 0} Lessons
-                      </Typography>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ bgcolor: "#fafafa", p: 0 }}>
-                    <List dense>
-                      {section.lessons?.map((lesson: Lesson) => (
-                        <ListItem
-                          key={lesson.id}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          width: "100%",
+                          mr: 2,
+                          gap: 2,
+                        }}
+                      >
+                        {/* LEFT */}
+                        <Box
                           sx={{
-                            py: 1.5,
-                            px: 2,
-                            borderBottom: "1px solid #f0f0f0",
-                            "&:last-child": { borderBottom: "none" },
-                            "&:hover": { bgcolor: "#f5f5f5" },
+                            flex: 1,
+                            minWidth: 0,
+                            mr: 2,
                           }}
                         >
-                          <ListItemIcon sx={{ minWidth: 36 }}>
-                            {getLessonIcon(lesson.type)}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={lesson.title}
-                            primaryTypographyProps={{
-                              variant: "body2",
-                              fontWeight: 400,
+                          <Typography
+                            fontWeight="500"
+                            sx={{
+                              wordBreak: "break-word",
+                              textAlign: "justify",
                             }}
-                          />
-                          {lesson.type.toLowerCase() === "video" &&
-                            lesson.duration && (
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 0.5,
-                                  ml: 2,
-                                }}
-                              >
-                                <AccessTimeIcon
-                                  sx={{ fontSize: 16, color: "text.secondary" }}
-                                />
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
+                          >
+                            {section.title}
+                          </Typography>
+
+                          {section.short_description && (
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {section.short_description}
+                            </Typography>
+                          )}
+                        </Box>
+
+                        {/* RIGHT */}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            flexShrink: 0,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary">
+                            {section.lessons?.length || 0} Lessons
+                          </Typography>
+
+                          <CircularProgressWithLabel value={section.progress} />
+                        </Box>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ bgcolor: "#fafafa", p: 0 }}>
+                      <List disablePadding dense>
+                        {section.lessons?.map((lesson: LessonGeneral) => (
+                          <ListItem disablePadding key={lesson.id}>
+                            <ListItemButton
+                              sx={{
+                                py: 1.5,
+                                px: 2,
+                                borderBottom: "1px solid #f0f0f0",
+                                "&:last-child": { borderBottom: "none" },
+                              }}
+                              onClick={() =>
+                                onCLickLessonHandle(lesson.id, lesson.type)
+                              }
+                            >
+                              <ListItemIcon sx={{ minWidth: 36 }}>
+                                <Box
+                                  sx={{
+                                    position: "relative",
+                                    display: "inline-flex",
+                                  }}
                                 >
-                                  {formatDuration(lesson.duration)}
-                                </Typography>
-                              </Box>
-                            )}
-                        </ListItem>
-                      ))}
-                    </List>
-                  </AccordionDetails>
-                </Accordion>
-              ))}
+                                  {getLessonIcon(lesson.type)}
+
+                                  {lesson.isFinished && (
+                                    <CheckCircleIcon
+                                      sx={{
+                                        position: "absolute",
+                                        bottom: -2,
+                                        right: -2,
+                                        fontSize: 14,
+                                        color: "#ffd700",
+                                        bgcolor: "white",
+                                        borderRadius: "50%",
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              </ListItemIcon>
+
+                              <ListItemText
+                                primary={lesson.title}
+                                primaryTypographyProps={{
+                                  variant: "body2",
+                                  fontWeight: 400,
+                                  noWrap: true,
+                                }}
+                                sx={{
+                                  flexGrow: 1,
+                                  minWidth: 0, // quan trọng để ellipsis hoạt động
+                                }}
+                              />
+
+                              {lesson.type.toLowerCase() === "video" &&
+                                lesson.duration && (
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 0.5,
+                                      ml: 2,
+                                    }}
+                                  >
+                                    <AccessTimeIcon
+                                      sx={{
+                                        fontSize: 16,
+                                        color: "text.secondary",
+                                      }}
+                                    />
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {formatDuration(lesson.duration)}
+                                    </Typography>
+                                  </Box>
+                                )}
+                            </ListItemButton>
+                          </ListItem>
+                        ))}
+                      </List>
+                    </AccordionDetails>
+                  </Accordion>
+                ),
+              )}
             </Paper>
           </Box>
 
@@ -1017,14 +649,17 @@ export default function CourseDetail() {
           <Box sx={{ width: { xs: "100%", md: 350 } }}>
             {/* Price & Enroll */}
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
-              <Typography variant="h4" fontWeight="bold" gutterBottom>
-                {course.price ? `$${course.price}` : "Free"}
-              </Typography>
+              {!course.isEnrolled && (
+                <Typography variant="h4" fontWeight="bold" gutterBottom>
+                  {course.price ? `$${course.price}` : "Free"}
+                </Typography>
+              )}
 
               <Button
                 variant="contained"
                 fullWidth
                 size="large"
+                disabled={course?.isEnrolled === true}
                 sx={{
                   bgcolor: "#ffd700",
                   color: "#000",
@@ -1036,19 +671,25 @@ export default function CourseDetail() {
                   },
                 }}
               >
-                Enroll now
+                {course?.isEnrolled ? "Already Enrolled" : "Enroll now"}
               </Button>
+              <Divider></Divider>
             </Paper>
 
-            {/* Training Info */}
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
-                Training 5 or more people
+                General information
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Class, launched less than a year ago by Blackboard co-founder
-                Michael Chasen, integrates exclusively...
-              </Typography>
+              {course.short_description && (
+                <Typography
+                  variant="body1"
+                  color="text.secondary"
+                  sx={{ mb: 2, fontWeight: 500 }}
+                  textAlign="justify"
+                >
+                  {course.short_description}
+                </Typography>
+              )}
             </Paper>
 
             {/* Share Section */}

@@ -19,7 +19,7 @@ import WorkIcon from "@mui/icons-material/Work";
 import SchoolIcon from "@mui/icons-material/School";
 import StarIcon from "@mui/icons-material/Star";
 import { useRouter } from "next/navigation";
-import { useAlert } from "@/components/alert";
+import { useAlert } from "@/components/Alert";
 import { ApiResponse } from "@/utils/dto/ApiResponse";
 
 /*=== Define type ===*/
