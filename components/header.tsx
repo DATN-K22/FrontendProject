@@ -7,16 +7,40 @@ import {
   Avatar,
   Button,
   InputBase,
+  Modal,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Menu,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import { useRouter } from "next/navigation";
-import { useUser } from "@/context/userContext";
+import SettingsIcon from "@mui/icons-material/Settings";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { usePathname, useRouter } from "next/navigation";
+import { authUtils } from "@/utils/auth";
+import { useState } from "react";
 
 export default function Header() {
   const router = useRouter();
-  const { user, loading } = useUser();
+  const pathname = usePathname();
+  const { userData } = authUtils.getAuth();
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+  const menus = [
+    { label: "Home", path: "/authenticated/homepage" },
+    { label: "My course", path: "/authenticated/my-course" },
+    { label: "Calendar", path: "/authenticated/calendar" },
+  ];
 
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
   return (
     <Box
       component="header"
@@ -35,7 +59,7 @@ export default function Header() {
             padding: "0.5em",
             borderRadius: "2em",
           }}
-          onClick={() => router.replace("/")}
+          onClick={() => router.replace("/authenticated/homepage")}
         >
           <Box
             component="img"
@@ -79,22 +103,113 @@ export default function Header() {
         alignItems="center"
         sx={{ display: { xs: "none", md: "flex" } }}
       >
-        <Typography sx={{ color: "#5B5B5B" }}>Home</Typography>
-        <Typography sx={{ color: "#5B5B5B" }}>My course</Typography>
-        <Typography sx={{ color: "#5B5B5B" }}>Calender</Typography>
+        {menus.map((item) => {
+          const isActive = pathname === item.path;
+
+          return (
+            <Typography
+              key={item.path}
+              onClick={() => router.push(item.path)}
+              sx={{
+                cursor: "pointer",
+                color: isActive ? "#000" : "#5B5B5B",
+                fontWeight: isActive ? 600 : 400,
+                position: "relative",
+                "&::after": isActive
+                  ? {
+                      content: '""',
+                      position: "absolute",
+                      bottom: -4,
+                      left: 0,
+                      width: "100%",
+                      height: "2px",
+                      backgroundColor: "#000",
+                    }
+                  : {},
+                "&:hover": {
+                  opacity: 0.8,
+                },
+              }}
+            >
+              {item.label}
+            </Typography>
+          );
+        })}
       </Stack>
 
       {/* Right: Wishlist + Profile */}
-      {user ? (
+      {userData ? (
         <Stack direction="row" spacing={2} alignItems="center">
           <IconButton sx={{ color: "#5B5B5B" }}>
             <FavoriteBorderIcon />
           </IconButton>
 
-          <Box>
-            <Avatar sx={{ bgcolor: "#151312", width: 48, height: 48 }}></Avatar>
-            <Typography>{}</Typography>
+          <Box
+            onClick={handleClick}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              cursor: "pointer",
+              transition: "all 0.2s ease-in-out",
+
+              "&:hover": {
+                opacity: 0.8,
+                transform: "scale(1.05)",
+              },
+            }}
+          >
+            <Avatar sx={{ bgcolor: "#151312", width: 30, height: 30 }} />
+            <Typography>{userData?.firstName || "User"}</Typography>
           </Box>
+
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleClose}
+            anchorOrigin={{
+              vertical: "bottom",
+              horizontal: "left",
+            }}
+            transformOrigin={{
+              vertical: "top",
+              horizontal: "left",
+            }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                borderRadius: 2,
+                minWidth: 200,
+              },
+            }}
+          >
+            <MenuItem onClick={handleClose}>
+              <ListItemIcon>
+                <AccountCircleIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Account</ListItemText>
+            </MenuItem>
+
+            <MenuItem onClick={handleClose}>
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Settings</ListItemText>
+            </MenuItem>
+
+            <MenuItem
+              onClick={() => {
+                authUtils.clearAuth();
+                handleClose();
+                router.replace("/auth/login");
+              }}
+            >
+              <ListItemIcon>
+                <LogoutIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Logout</ListItemText>
+            </MenuItem>
+          </Menu>
         </Stack>
       ) : (
         <Stack direction="row" spacing={2} alignItems="center">

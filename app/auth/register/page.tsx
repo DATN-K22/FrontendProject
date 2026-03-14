@@ -17,6 +17,8 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import api from "@/api/api";
 import { authUtils } from "@/utils/auth";
 import { useRouter } from "next/navigation";
+import { useLoading } from "@/components/Loading";
+import { useAlert } from "@/components/Alert";
 
 type RegisterResponse = {
   success: boolean;
@@ -45,6 +47,8 @@ export default function RegisterPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("register");
   const router = useRouter();
   const [errors, setErrors] = useState<FormErrors>({});
+  const { showLoading, hideLoading } = useLoading();
+  const { showAlert } = useAlert();
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
@@ -86,7 +90,8 @@ export default function RegisterPage() {
     if (!validateForm()) return;
 
     try {
-      const res = await api.post("/auth/signup", {
+      showLoading();
+      const res = await api.post("/users/auth/signup", {
         email,
         password,
         first_name: firstName,
@@ -99,19 +104,21 @@ export default function RegisterPage() {
         throw new Error("Login failed: no token returned");
       }
 
-      authUtils.setAuth(accessToken, role);
+      // authUtils.setAuth(accessToken, role);
 
       if (role === "admin") {
         window.location.href = "/admin";
       } else {
-        window.location.href = "/";
+        router.replace("/auth/login");
       }
     } catch (error: any) {
       console.error("Register error:", error);
 
       const message = error.response?.data?.message || "Register failed!";
 
-      alert(message);
+      showAlert(message, "error", { vertical: "bottom", horizontal: "left" });
+    } finally {
+      hideLoading();
     }
   };
 
@@ -450,7 +457,11 @@ export default function RegisterPage() {
                             p: { xs: 0.5, md: 1 },
                           }}
                         >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                          {showConfirmPassword ? (
+                            <VisibilityOff />
+                          ) : (
+                            <Visibility />
+                          )}
                         </IconButton>
                       </InputAdornment>
                     ),

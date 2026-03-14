@@ -19,7 +19,9 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import api from "@/api/api";
 import { useRouter } from "next/navigation";
 import { ApiResponse } from "@/utils/dto/ApiResponse";
-import { useUser } from "@/context/userContext";
+import { authUtils } from "@/utils/auth";
+import { useLoading } from "@/components/Loading";
+import { useAlert } from "@/components/Alert";
 
 type FormErrors = {
   email?: string;
@@ -34,7 +36,9 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const router = useRouter();
   const [errors, setErrors] = useState<FormErrors>({});
-  const { login } = useUser();
+  const { showLoading, hideLoading } = useLoading();
+  const { showAlert } = useAlert();
+
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
   };
@@ -61,7 +65,8 @@ export default function LoginPage() {
 
     try {
       if (!validateForm()) return;
-      const res: ApiResponse = await api.post("/auth/signin", {
+      showLoading();
+      const res: ApiResponse = await api.post("/users/auth/signin", {
         email,
         password,
       });
@@ -70,8 +75,12 @@ export default function LoginPage() {
         throw new Error("Login failed: no token returned");
       }
 
-      login(accessToken, user, rememberMe);
+      authUtils.setAuth(accessToken, user, rememberMe);
 
+      showAlert("Login successfully", "info", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
       if (user.role === "admin") {
         router.replace("/authenticated/admin");
       } else {
@@ -84,7 +93,9 @@ export default function LoginPage() {
         error.response?.data?.message ||
         "Login failed. Please check your credentials.";
 
-      alert(message);
+      showAlert(message, "error", { vertical: "bottom", horizontal: "left" });
+    } finally {
+      hideLoading();
     }
   };
 

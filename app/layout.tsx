@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { UserProvider } from "@/context/userContext";
+import Providers from "./providers";
+import { LoadingProvider } from "@/components/Loading";
+import { AlertProvider } from "@/components/Alert";
 
 export const metadata: Metadata = {
   title: "Next + MUI",
@@ -15,9 +17,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <UserProvider>
-          <main>{children}</main>
-        </UserProvider>
+        <Providers>
+          <LoadingProvider>
+            <AlertProvider>
+              <main>{children}</main>
+            </AlertProvider>
+          </LoadingProvider>
+        </Providers>
       </body>
     </html>
   );

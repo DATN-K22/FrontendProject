@@ -2,12 +2,13 @@
 
 import api from "@/api/api";
 import {
+  Avatar,
   Box,
   Card,
   CardContent,
   Container,
   Grid,
-  IconButton,
+  Skeleton,
   Typography,
 } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -16,20 +17,21 @@ import ComputerIcon from "@mui/icons-material/Computer";
 import StorageIcon from "@mui/icons-material/Storage";
 import WorkIcon from "@mui/icons-material/Work";
 import SchoolIcon from "@mui/icons-material/School";
+import StarIcon from "@mui/icons-material/Star";
 import { useRouter } from "next/navigation";
+import { useAlert } from "@/components/Alert";
+import { ApiResponse } from "@/utils/dto/ApiResponse";
 
 /*=== Define type ===*/
 type RelearningCourse = {
-  id: number;
+  id: string;
   thumbnail_url: string;
   title: string;
   user: {
     name: string;
-    avatar_url: string;
+    avt_url: string;
   };
   progress: number;
-  currentLesson: number;
-  totalLessons: number;
 };
 
 enum CourseLevel {
@@ -40,67 +42,60 @@ enum CourseLevel {
   AllLevels = "All Levels",
 }
 
+type RecommendedCourse = {
+  id: string;
+  thumbnail_url: string;
+  title: string;
+  course_level: CourseLevel;
+  short_description: string;
+  user: {
+    name: string;
+    avt_url: string;
+  };
+  rating: number;
+  price: number;
+};
+
 export default function HomePage() {
   /*=== UseState hooks ===*/
   const [reLearningCourse, setRelearningCourse] = useState<
     RelearningCourse[] | null
   >(null);
-  const router = useRouter();
 
+  const [recommendationCourse, setRecommendationCourse] = useState<
+    RecommendedCourse[] | null
+  >(null);
+
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const { showAlert } = useAlert();
   /*=== UseEffect hooks ===*/
   useEffect(() => {
-    const fetchRelearningCourse = async () => {
+    const fetchContent = async () => {
       try {
-        const res = {
-          data: [
-            {
-              id: 1,
-              thumbnail_url: "https://example.com/course1.jpg",
-              title: "AWS Certified Solutions Architect",
-              user: {
-                name: "Lina",
-                avatar_url: "https://example.com/instructor1.jpg",
-              },
-              progress: 70,
-              currentLesson: 5,
-              totalLessons: 7,
-            },
-            {
-              id: 2,
-              thumbnail_url: "https://example.com/course1.jpg",
-              title: "AWS Certified Solutions Architect",
-              user: {
-                name: "Lina",
-                avatar_url: "https://example.com/instructor1.jpg",
-              },
-              progress: 70,
-              currentLesson: 5,
-              totalLessons: 7,
-            },
-            {
-              id: 3,
-              thumbnail_url: "https://example.com/course1.jpg",
-              title: "AWS Certified Solutions Architect",
-              user: {
-                name: "Lina",
-                avatar_url: "https://example.com/instructor1.jpg",
-              },
-              progress: 70,
-              currentLesson: 5,
-              totalLessons: 7,
-            },
-          ],
-        };
-        setRelearningCourse(res.data);
+        setLoading(true);
+        const incompleteCourses = await api.get(
+          "/courses/course/me/latest-incomplete?limit=3",
+        );
+        const recommendationCourses: { data: { data: RecommendedCourse[] } } =
+          await api.get("/courses/course/me/recommendation?offset=0&limit=8");
+        setRelearningCourse(incompleteCourses.data.data);
+        setRecommendationCourse(recommendationCourses.data.data);
       } catch (error) {
         console.log("Error fetching relearning course:", error);
+        showAlert("Fail to fetch content for homepage");
+      } finally {
+        setLoading(false);
       }
     };
-    fetchRelearningCourse();
+    fetchContent();
   }, []);
 
   /*=== Component ===*/
-  const ReLearningCourseList = () => {
+  const ReLearningCourseList = ({ loading }: { loading: boolean }) => {
+    const skeletonArray = Array.from({ length: 3 });
+    const isSkeleton = loading || !reLearningCourse;
+
     return (
       <Box
         sx={{
@@ -149,116 +144,169 @@ export default function HomePage() {
           spacing={{ xs: 2, md: 3 }}
           columns={{ xs: 4, sm: 8, md: 12 }}
         >
-          {reLearningCourse?.map((course) => (
-            <Grid key={course.id} size={{ xs: 4, sm: 4, md: 4 }}>
-              <Box
-                component="button"
-                onClick={() => {
-                  router.push(`/course/${course.id}`);
-                }}
-                sx={{
-                  borderRadius: 4,
-                  bgcolor: "#fff",
-                  p: 2,
-                  display: "flex",
-                  width: "100%",
-                  flexDirection: "column",
-                  height: "100%",
-                  border: "none",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  transition: "all 0.3s ease",
-                  cursor: "pointer",
-                  "&:hover": {
-                    transform: "translateY(-8px)",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                  },
-                }}
-              >
-                <Box
-                  component="img"
-                  src={course.thumbnail_url}
-                  alt={course.title}
-                  sx={{
-                    borderRadius: 3,
-                    width: "100%",
-                    height: 200,
-                    objectFit: "cover",
-                    mb: 2,
-                    bgcolor: "#ddd",
-                  }}
-                />
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: "1.125rem",
-                    mb: 1.5,
-                    color: "#1a1a1a",
-                    textAlign: "left",
-                  }}
+          {(isSkeleton ? skeletonArray : reLearningCourse).map(
+            (course: any, index: number) => {
+              return (
+                <Grid
+                  key={isSkeleton ? index : course.id}
+                  size={{ xs: 4, sm: 4, md: 4 }}
                 >
-                  {course.title}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
                   <Box
-                    component="img"
-                    src={course.user.avatar_url}
-                    alt={course.user.name}
+                    component={isSkeleton ? "div" : "button"}
+                    onClick={
+                      isSkeleton
+                        ? undefined
+                        : () =>
+                            router.push(`/authenticated/course/${course.id}`)
+                    }
                     sx={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: "50%",
-                      mr: 1,
-                      bgcolor: "#ccc",
-                    }}
-                  />
-                  <Typography
-                    sx={{
-                      fontWeight: 500,
-                      fontSize: "0.9375rem",
-                      color: "#333",
+                      borderRadius: 4,
+                      bgcolor: "#fff",
+                      p: 2,
+                      display: "flex",
+                      width: "100%",
+                      flexDirection: "column",
+                      height: "100%",
+                      border: "none",
+                      boxShadow: isSkeleton
+                        ? "0 2px 8px rgba(0,0,0,0.08)"
+                        : "0 2px 8px rgba(0,0,0,0.08)",
+                      transition: "all 0.3s ease",
+                      textAlign: "left",
+                      ...(isSkeleton
+                        ? {}
+                        : {
+                            cursor: "pointer",
+                            "&:hover": {
+                              transform: "translateY(-8px)",
+                              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                            },
+                          }),
                     }}
                   >
-                    {course.user.name}
-                  </Typography>
-                </Box>
-                <Box sx={{ flexGrow: 1 }} />
-                {/* Progress Bar */}
-                <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Box
-                      sx={{
-                        height: 7,
-                        borderRadius: 4,
-                        background: "#eee",
-                        overflow: "hidden",
-                      }}
-                    >
+                    {/* Thumbnail */}
+                    {isSkeleton ? (
+                      <Skeleton
+                        variant="rectangular"
+                        height={200}
+                        sx={{ borderRadius: 3, mb: 2 }}
+                      />
+                    ) : (
                       <Box
+                        component="img"
+                        src={
+                          course.thumbnail_url?.trim()
+                            ? course.thumbnail_url
+                            : "/images/no_image.jpg"
+                        }
+                        alt={course.title}
                         sx={{
-                          width: `${course.progress}%`,
-                          height: "100%",
-                          background: "#FFD600",
-                          borderRadius: 4,
+                          borderRadius: 3,
+                          width: "100%",
+                          height: 200,
+                          objectFit: "cover",
+                          mb: 2,
+                          bgcolor: "#ddd",
                         }}
                       />
-                    </Box>
-                  </Box>
-                </Box>
+                    )}
 
-                <Typography
-                  sx={{
-                    fontSize: "0.8125rem",
-                    color: "#888",
-                    whiteSpace: "nowrap",
-                    textAlign: "right",
-                    mt: 0.5,
-                  }}
-                >
-                  Lesson {course.currentLesson} of {course.totalLessons}
-                </Typography>
-              </Box>
-            </Grid>
-          ))}
+                    {/* Title */}
+                    {isSkeleton ? (
+                      <>
+                        <Skeleton height={28} sx={{ mb: 1 }} />
+                        <Skeleton height={28} width="80%" sx={{ mb: 2 }} />
+                      </>
+                    ) : (
+                      <Typography
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "1.125rem",
+                          mb: 1.5,
+                          color: "#1a1a1a",
+                          textAlign: "justify",
+                          display: "-webkit-box",
+                          WebkitBoxOrient: "vertical",
+                          WebkitLineClamp: 2,
+                          overflow: "hidden",
+                          lineHeight: 1.5,
+                          minHeight: "3em",
+                        }}
+                      >
+                        {course.title}
+                      </Typography>
+                    )}
+
+                    {/* Instructor */}
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                      {isSkeleton ? (
+                        <>
+                          <Skeleton
+                            variant="circular"
+                            width={34}
+                            height={34}
+                            sx={{ mr: 1 }}
+                          />
+                          <Skeleton width="40%" />
+                        </>
+                      ) : (
+                        <>
+                          <Avatar
+                            src={course.user?.avatar_url?.trim() || undefined}
+                            alt={course.user?.name ?? ""}
+                            sx={{
+                              bgcolor: "#151312",
+                              width: 32,
+                              height: 32,
+                              mr: 1,
+                            }}
+                          ></Avatar>
+                          <Typography
+                            sx={{
+                              fontWeight: 500,
+                              fontSize: "0.9375rem",
+                              color: "#333",
+                            }}
+                          >
+                            {course.user?.name}
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
+
+                    <Box sx={{ flexGrow: 1 }} />
+
+                    {/* Progress */}
+                    {isSkeleton ? (
+                      <Skeleton
+                        variant="rectangular"
+                        height={7}
+                        sx={{ borderRadius: 4 }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          height: 7,
+                          borderRadius: 4,
+                          background: "#eee",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: `${course.progress ?? 0}%`,
+                            height: "100%",
+                            background: "#FFD600",
+                            borderRadius: 4,
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                </Grid>
+              );
+            },
+          )}
         </Grid>
       </Box>
     );
@@ -410,69 +458,8 @@ export default function HomePage() {
     );
   };
 
-  const RecommendedCourse = () => {
-    const recommendedCourses = [
-      {
-        id: 1,
-        thumbnail_url: "https://example.com/course1.jpg",
-        category: "Design",
-        duration: "3 Month",
-        title: "AWS Certified solutions Architect",
-        description:
-          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
-        instructor: {
-          name: "Lina",
-          avatar_url: "https://example.com/instructor1.jpg",
-        },
-        price: 100000,
-        currency: "VND",
-      },
-      {
-        id: 2,
-        thumbnail_url: "https://example.com/course2.jpg",
-        category: "Design",
-        duration: "3 Month",
-        title: "AWS Certified solutions Architect",
-        description:
-          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
-        instructor: {
-          name: "Lina",
-          avatar_url: "https://example.com/instructor2.jpg",
-        },
-        price: 0,
-        currency: "VND",
-      },
-      {
-        id: 3,
-        thumbnail_url: "https://example.com/course3.jpg",
-        category: "Design",
-        duration: "3 Month",
-        title: "AWS Certified solutions Architect",
-        description:
-          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
-        instructor: {
-          name: "Lina",
-          avatar_url: "https://example.com/instructor3.jpg",
-        },
-        price: 0,
-        currency: "VND",
-      },
-      {
-        id: 4,
-        thumbnail_url: "https://example.com/course4.jpg",
-        category: "Design",
-        duration: "3 Month",
-        title: "AWS Certified solutions Architect",
-        description:
-          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor",
-        instructor: {
-          name: "Lina",
-          avatar_url: "https://example.com/instructor4.jpg",
-        },
-        price: 0,
-        currency: "VND",
-      },
-    ];
+  const RecommendedCourseList = ({ loading }: { loading: boolean }) => {
+    const skeletonArray = Array.from({ length: 4 });
 
     return (
       <Box
@@ -523,205 +510,226 @@ export default function HomePage() {
           spacing={{ xs: 2, md: 3 }}
           columns={{ xs: 4, sm: 8, md: 12 }}
         >
-          {recommendedCourses.map((course) => (
-            <Grid key={course.id} size={{ xs: 4, sm: 4, md: 3 }}>
-              <Box
-                component="button"
-                onClick={() => {
-                  router.push(`/course/${course.id}`);
-                }}
-                sx={{
-                  borderRadius: 4,
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
-                  bgcolor: "#fff",
-                  p: 2.5,
-                  display: "flex",
-                  width: "100%",
-                  flexDirection: "column",
-                  height: "100%",
-                  border: "none",
-                  textAlign: "left",
-                  "&:hover": {
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-                    cursor: "pointer",
-                    transform: "translateY(-4px)",
-                    transition: "all 0.3s ease",
-                  },
-                }}
+          {(loading || !recommendationCourse
+            ? skeletonArray
+            : recommendationCourse
+          ).map((item: any, index: number) => {
+            const isSkeleton = loading || !recommendationCourse;
+
+            return (
+              <Grid
+                key={isSkeleton ? index : item.id}
+                size={{ xs: 4, sm: 4, md: 3 }}
               >
-                {/* Thumbnail */}
                 <Box
-                  component="img"
-                  src={course.thumbnail_url}
-                  alt={course.title}
+                  component={isSkeleton ? "div" : "button"}
+                  onClick={
+                    isSkeleton
+                      ? undefined
+                      : () => router.push(`/course/${item.id}`)
+                  }
                   sx={{
-                    borderRadius: 3,
+                    borderRadius: 4,
+                    boxShadow: isSkeleton
+                      ? "0 2px 12px rgba(0,0,0,0.1)"
+                      : "0 2px 12px rgba(0,0,0,0.3)",
+                    bgcolor: "#fff",
+                    p: 2.5,
+                    display: "flex",
                     width: "100%",
-                    height: 200,
-                    objectFit: "cover",
-                    mb: 2,
-                    bgcolor: "#ddd",
-                  }}
-                />
-
-                {/* Category and Duration */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 1.5,
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Box
-                      component="span"
-                      sx={{
-                        width: 16,
-                        height: 16,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#999"
-                        strokeWidth="2"
-                      >
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
-                      </svg>
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontSize: "0.875rem",
-                        color: "#999",
-                        fontWeight: 400,
-                      }}
-                    >
-                      {course.category}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <Box
-                      component="span"
-                      sx={{
-                        width: 16,
-                        height: 16,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#999"
-                        strokeWidth="2"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 6v6l4 2" />
-                      </svg>
-                    </Box>
-                    <Typography
-                      sx={{
-                        fontSize: "0.875rem",
-                        color: "#999",
-                        fontWeight: 400,
-                      }}
-                    >
-                      {course.duration}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                {/* Title */}
-                <Typography
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: "1.125rem",
-                    mb: 1.5,
-                    color: "#1a1a1a",
-                    lineHeight: 1.4,
+                    flexDirection: "column",
+                    height: "100%",
+                    border: "none",
+                    textAlign: "left",
+                    transition: "all 0.3s ease",
+                    ...(isSkeleton
+                      ? {}
+                      : {
+                          "&:hover": {
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+                            transform: "translateY(-4px)",
+                            cursor: "pointer",
+                          },
+                        }),
                   }}
                 >
-                  {course.title}
-                </Typography>
-
-                {/* Description */}
-                <Typography
-                  sx={{
-                    fontSize: "0.875rem",
-                    color: "#666",
-                    mb: 2,
-                    lineHeight: 1.6,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {course.description}
-                </Typography>
-
-                <Box sx={{ flexGrow: 1 }} />
-
-                {/* Footer: Instructor and Price */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    pt: 2,
-                    borderTop: "1px solid #f0f0f0",
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
+                  {/* Thumbnail */}
+                  {isSkeleton ? (
+                    <Skeleton
+                      variant="rectangular"
+                      height={200}
+                      sx={{ borderRadius: 3, mb: 2 }}
+                    />
+                  ) : (
                     <Box
                       component="img"
-                      src={course.instructor.avatar_url}
-                      alt={course.instructor.name}
+                      src={
+                        item.thumbnail_url?.trim()
+                          ? item.thumbnail_url
+                          : "/images/no_image.jpg"
+                      }
+                      alt={item.title}
                       sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        mr: 1,
-                        bgcolor: "#ccc",
+                        borderRadius: 3,
+                        width: "100%",
+                        height: 200,
+                        objectFit: "cover",
+                        mb: 2,
                       }}
                     />
-                    <Typography
-                      sx={{
-                        fontWeight: 500,
-                        fontSize: "0.875rem",
-                        color: "#333",
-                      }}
-                    >
-                      {course.instructor.name}
-                    </Typography>
-                  </Box>
+                  )}
 
-                  <Typography
+                  {/* Category + Duration */}
+                  <Box
                     sx={{
-                      fontWeight: 700,
-                      fontSize: "1.125rem",
-                      color: "#FFD600",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mb: 1.5,
                     }}
                   >
-                    {course.price === 0
-                      ? `0 ${course.currency}`
-                      : `${course.price.toLocaleString()} ${course.currency}`}
-                  </Typography>
+                    {isSkeleton ? (
+                      <>
+                        <Skeleton width="30%" height={20} />
+                        <Skeleton width="20%" height={20} />
+                      </>
+                    ) : (
+                      <>
+                        <Typography
+                          fontSize="0.875rem"
+                          color="#999"
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                          }}
+                        >
+                          <StarIcon sx={{ fontSize: 23, color: "#f5c518" }} />
+                          {item.rating ?? 0}
+                        </Typography>
+                        <Typography fontSize="0.875rem" color="#999">
+                          {item.duration}
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
+
+                  {/* Title */}
+                  {isSkeleton ? (
+                    <>
+                      <Skeleton height={28} />
+                      <Skeleton width="80%" height={28} sx={{ mb: 1.5 }} />
+                    </>
+                  ) : (
+                    <Typography
+                      fontWeight={600}
+                      fontSize="1.125rem"
+                      textAlign="justify"
+                      sx={{
+                        display: "-webkit-box",
+                        WebkitBoxOrient: "vertical",
+                        WebkitLineClamp: 2,
+                      }}
+                      overflow="hidden"
+                      mb={1.5}
+                    >
+                      {item.title}
+                    </Typography>
+                  )}
+
+                  {/* Description */}
+                  {isSkeleton ? (
+                    <>
+                      <Skeleton height={18} />
+                      <Skeleton height={18} />
+                      <Skeleton width="70%" height={18} sx={{ mb: 2 }} />
+                    </>
+                  ) : (
+                    <Typography
+                      fontSize="0.875rem"
+                      color="#666"
+                      mb={2}
+                      sx={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                      textAlign="justify"
+                    >
+                      {item.short_description}
+                    </Typography>
+                  )}
+
+                  <Box sx={{ flexGrow: 1 }} />
+
+                  {/* Footer */}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      pt: 2,
+                      borderTop: "1px solid #f0f0f0",
+                    }}
+                  >
+                    {isSkeleton ? (
+                      <>
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <Skeleton
+                            variant="circular"
+                            width={32}
+                            height={32}
+                            sx={{ mr: 1 }}
+                          />
+                          <Skeleton width={80} height={20} />
+                        </Box>
+                        <Skeleton width={60} height={28} />
+                      </>
+                    ) : (
+                      <>
+                        <Box sx={{ display: "flex", alignItems: "center" }}>
+                          <Avatar
+                            src={item.user?.avatar_url?.trim() || undefined}
+                            alt={item.user?.name ?? ""}
+                            sx={{
+                              bgcolor: "#151312",
+                              width: 32,
+                              height: 32,
+                              mr: 1,
+                            }}
+                          ></Avatar>
+                          <Typography
+                            fontSize="0.875rem"
+                            overflow="hidden"
+                            textAlign="justify"
+                            sx={{
+                              display: "-webkit-box",
+                              WebkitLineClamp: 1,
+                              WebkitBoxOrient: "vertical",
+                            }}
+                          >
+                            {item.user?.name ?? ""}
+                          </Typography>
+                        </Box>
+
+                        <Typography
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: "1.125rem",
+                            color: "#FFD600",
+                          }}
+                        >
+                          {item.price === 0
+                            ? `0 ${item.currency}`
+                            : `${item.price.toLocaleString()}`}
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
                 </Box>
-              </Box>
-            </Grid>
-          ))}
+              </Grid>
+            );
+          })}
         </Grid>
       </Box>
     );
@@ -729,9 +737,9 @@ export default function HomePage() {
 
   return (
     <Box>
-      <ReLearningCourseList />
+      <ReLearningCourseList loading={loading} />
       <CourseCategories />
-      <RecommendedCourse />
+      <RecommendedCourseList loading={loading} />
     </Box>
   );
 }
