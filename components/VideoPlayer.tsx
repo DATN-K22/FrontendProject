@@ -45,7 +45,7 @@ export default function VideoPlayer({
   onProgress90,
 }: {
   url: string;
-  isFinished: boolean;
+  isFinished?: boolean;
   onProgress90?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);

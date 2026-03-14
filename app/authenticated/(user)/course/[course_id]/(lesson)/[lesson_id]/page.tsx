@@ -1,5 +1,5 @@
 "use client";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Box,
   Container,
@@ -35,7 +35,7 @@ export default function LessonDetail() {
   const [data, setData] = useState<LessonDetailDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const { showAlert } = useAlert();
-
+  const router = useRouter();
   useEffect(() => {
     const fetchChapterLesson = async () => {
       try {
@@ -352,6 +352,11 @@ export default function LessonDetail() {
                       <Button
                         variant="contained"
                         size="large"
+                        onClick={() =>
+                          router.push(
+                            `/authenticated/course/${course_id}/lab/${lesson_id}/overview`,
+                          )
+                        }
                         sx={{
                           background: "white",
                           color: "#ffd700",

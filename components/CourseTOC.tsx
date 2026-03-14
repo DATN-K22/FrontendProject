@@ -15,6 +15,7 @@ import {
   Skeleton,
   Divider,
   ListItemButton,
+  Button,
 } from "@mui/material";
 import {
   ExpandMore,
@@ -134,17 +135,23 @@ export default function CourseTOC() {
           boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
         }}
       >
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 600,
-            mb: 2,
-            fontFamily: "'Poppins', sans-serif",
-            color: "#1a1a1a",
-          }}
+        <Button
+          onClick={() => router.push(`/authenticated/course/${course_id}`)}
+          sx={{ borderTopLeftRadius: "20px", borderTopRightRadius: "20px" }}
         >
-          {data?.course.title}
-        </Typography>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 600,
+              mb: 2,
+              fontFamily: "'Poppins', sans-serif",
+              color: "#1a1a1a",
+            }}
+          >
+            {data?.course.title}
+          </Typography>
+        </Button>
+
         <Divider sx={{ mb: 2 }} />
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
