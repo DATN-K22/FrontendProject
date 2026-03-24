@@ -98,18 +98,18 @@ export default function RegisterPage() {
         last_name: lastName,
       });
 
-      const { accessToken, role } = res.data.data;
+      const { tokens, user } = res.data.data;
 
-      if (!accessToken) {
+      if (!tokens.accessToken) {
         throw new Error("Login failed: no token returned");
       }
 
-      // authUtils.setAuth(accessToken, role);
+      authUtils.setAuth(tokens, user);
 
-      if (role === "admin") {
+      if (user.role === "admin") {
         window.location.href = "/admin";
       } else {
-        router.replace("/auth/login");
+        router.replace("/authenticated/hompage");
       }
     } catch (error: any) {
       console.error("Register error:", error);

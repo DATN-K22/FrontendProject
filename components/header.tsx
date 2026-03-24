@@ -30,7 +30,7 @@ export default function Header() {
   const open = Boolean(anchorEl);
   const menus = [
     { label: "Home", path: "/authenticated/homepage" },
-    { label: "My course", path: "/authenticated/my-course" },
+    { label: "My course", path: "/authenticated/course/my-courses" },
     { label: "Calendar", path: "/authenticated/schedule" },
   ];
 
