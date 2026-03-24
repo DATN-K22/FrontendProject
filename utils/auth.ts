@@ -1,13 +1,14 @@
 export const authUtils = {
   setAuth: (
-    token: string,
+    tokens: { access_token: string; refresh_token: string },
     userData: Record<string, any> = {},
     rememberMe: boolean = false,
   ) => {
     if (typeof window === "undefined") return;
 
     const storage = rememberMe ? localStorage : sessionStorage;
-    storage.setItem("accessToken", token);
+    storage.setItem("accessToken", tokens.access_token);
+    storage.setItem("refreshToken", tokens.refresh_token);
     storage.setItem("userData", JSON.stringify(userData));
   },
 

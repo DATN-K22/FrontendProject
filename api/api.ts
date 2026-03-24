@@ -5,7 +5,25 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor: automatically add Authorization token to requests
+let isRefreshing = false;
+let failedQueue: {
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+}[] = [];
+
+const retrySet = new Set<any>();
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 if (typeof window !== "undefined") {
   api.interceptors.request.use(
     (config) => {
@@ -17,31 +35,78 @@ if (typeof window !== "undefined") {
       }
       return config;
     },
-    (error) => {
-      return Promise.reject(error);
+    (error) => Promise.reject(error),
+  );
+
+  api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const originalRequest = error.config;
+
+      if (error.response?.status !== 401 || retrySet.has(originalRequest)) {
+        return Promise.reject(error);
+      }
+
+      retrySet.add(originalRequest);
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      isRefreshing = true;
+
+      const fromLocal = localStorage.getItem("refreshToken");
+      const fromSession = sessionStorage.getItem("refreshToken");
+      const refreshToken = fromLocal || fromSession;
+
+      if (!refreshToken) {
+        isRefreshing = false;
+        window.location.href = "/login";
+        return Promise.reject(error);
+      }
+
+      return new Promise(async (resolve, reject) => {
+        try {
+          const res = await axios.post(
+            `${process.env.NEXT_PUBLIC_API_URL}users/auth/refresh`,
+            { refresh_token: refreshToken },
+          );
+
+          const newAccessToken = res.data.data.access_token;
+          const newRefreshToken = res.data.data.refresh_token;
+
+          const storage = fromLocal ? localStorage : sessionStorage;
+          storage.setItem("accessToken", newAccessToken);
+          storage.setItem("refreshToken", newRefreshToken);
+
+          processQueue(null, newAccessToken);
+
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          resolve(api(originalRequest));
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          sessionStorage.removeItem("accessToken");
+          sessionStorage.removeItem("refreshToken");
+
+          window.location.href = "/login";
+
+          reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      });
     },
   );
 }
-
-// // Response interceptor: handle errors
-// api.interceptors.response.use(
-//   (response) => response,
-//   (error) => {
-//     // Handle 401 errors (unauthorized/expired token)
-//     if (error.response?.status === 401) {
-//       // Clear invalid token
-//       localStorage.removeItem("token");
-//       // Optionally redirect to login page
-//       if (
-//         window.location.pathname !== "/login" &&
-//         window.location.pathname !== "/signup"
-//       ) {
-//         // Only show alert if not already on login/signup page
-//         console.log("Token expired or invalid. Please login again.");
-//       }
-//     }
-//     return Promise.reject(error);
-//   },
-// );
 
 export default api;

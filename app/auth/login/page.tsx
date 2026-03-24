@@ -70,12 +70,12 @@ export default function LoginPage() {
         email,
         password,
       });
-      const { accessToken, user } = res.data.data;
-      if (!accessToken) {
+      const { tokens, user } = res.data.data;
+      if (!tokens.access_token) {
         throw new Error("Login failed: no token returned");
       }
 
-      authUtils.setAuth(accessToken, user, rememberMe);
+      authUtils.setAuth(tokens, user, rememberMe);
 
       showAlert("Login successfully", "info", {
         vertical: "bottom",
