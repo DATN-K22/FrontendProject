@@ -74,6 +74,9 @@ type CalendarEvent = {
   tag: "Class" | "Lab" | "Review";
   startEpoch: number;
   endEpoch: number;
+  rawId: string;         // id thực của event node này
+  masterEventId: string; // id của master event (dùng cho split/exception)
+  occurrenceIso: string; // ISO của occurrence này
 };
 
 const hours = Array.from({ length: 24 }, (_, index) => `${index}:00`);
@@ -84,63 +87,7 @@ const calendarGridMinHeight = calendarGridHeaderHeight + hours.length * calendar
 const calendarGridRowTemplate = `${calendarGridHeaderHeight}px repeat(${hours.length}, ${calendarGridHourHeight}px)`;
 
 // Static fallback events — epochs stored as UTC so offset-aware display works correctly
-const weekEvents: CalendarEvent[] = [
-  {
-    id: "e1",
-    title: "UI/UX Conclave Design",
-    description: "Sprint design review for dashboard interactions.",
-    date: "2026-03-20",
-    start: "12:00",
-    end: "13:00",
-    tag: "Class",
-    startEpoch: new Date("2026-03-20T12:00:00Z").getTime(),
-    endEpoch: new Date("2026-03-20T13:00:00Z").getTime(),
-  },
-  {
-    id: "e2",
-    title: "Cloud Lab Sprint",
-    description: "Lab session for deployment and monitoring tasks.",
-    date: "2026-03-31",
-    start: "14:00",
-    end: "15:30",
-    tag: "Lab",
-    startEpoch: new Date("2026-03-31T14:00:00Z").getTime(),
-    endEpoch: new Date("2026-03-31T15:30:00Z").getTime(),
-  },
-  {
-    id: "e3",
-    title: "Global Project Review",
-    description: "Cross-team status review and feedback.",
-    date: "2026-03-28",
-    start: "11:30",
-    end: "12:30",
-    tag: "Review",
-    startEpoch: new Date("2026-03-28T11:30:00Z").getTime(),
-    endEpoch: new Date("2026-03-28T12:30:00Z").getTime(),
-  },
-  {
-    id: "e4",
-    title: "Frontend Architecture",
-    description: "Architecture deep dive for component boundaries.",
-    date: "2026-03-20",
-    start: "09:00",
-    end: "10:30",
-    tag: "Class",
-    startEpoch: new Date("2026-03-20T09:00:00Z").getTime(),
-    endEpoch: new Date("2026-03-20T10:30:00Z").getTime(),
-  },
-  {
-    id: "e5",
-    title: "Lab Debrief",
-    description: "Wrap-up and action items from the lab.",
-    date: "2026-03-20",
-    start: "16:00",
-    end: "17:00",
-    tag: "Lab",
-    startEpoch: new Date("2026-03-20T16:00:00Z").getTime(),
-    endEpoch: new Date("2026-03-20T17:00:00Z").getTime(),
-  },
-];
+const weekEvents: CalendarEvent[] = [];
 
 const chipColorMap: Record<CalendarEvent["tag"], "primary" | "success" | "warning"> = {
   Class: "primary",
@@ -241,6 +188,70 @@ const buildMiniCalendar = (anchorDate: Date) => {
       };
     });
   });
+};
+
+const buildOverlapColumns = (events: CalendarEvent[]): Map<string, { column: number; totalColumns: number }> => {
+  const result = new Map<string, { column: number; totalColumns: number }>();
+  
+  if (events.length === 0) return result;
+
+  // Sắp xếp theo startEpoch
+  const sorted = [...events].sort((a, b) => a.startEpoch - b.startEpoch);
+
+  // Tìm các cluster — nhóm events có overlap với nhau
+  const clusters: CalendarEvent[][] = [];
+  let currentCluster: CalendarEvent[] = [];
+  let clusterEnd = 0;
+
+  for (const event of sorted) {
+    if (currentCluster.length === 0 || event.startEpoch < clusterEnd) {
+      currentCluster.push(event);
+      clusterEnd = Math.max(clusterEnd, event.endEpoch);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [event];
+      clusterEnd = event.endEpoch;
+    }
+  }
+  if (currentCluster.length > 0) clusters.push(currentCluster);
+
+  // Trong mỗi cluster, assign column bằng greedy algorithm
+  for (const cluster of clusters) {
+    const totalColumns = cluster.length;
+    const columnEndTimes: number[] = [];
+
+    for (const event of cluster) {
+      // Tìm column trống đầu tiên
+      let assignedColumn = 0;
+      for (let col = 0; col < columnEndTimes.length; col++) {
+        if (event.startEpoch >= columnEndTimes[col]) {
+          assignedColumn = col;
+          columnEndTimes[col] = event.endEpoch;
+          break;
+        }
+        assignedColumn = col + 1;
+      }
+
+      if (assignedColumn >= columnEndTimes.length) {
+        columnEndTimes.push(event.endEpoch);
+      } else {
+        columnEndTimes[assignedColumn] = event.endEpoch;
+      }
+
+      result.set(event.id, { column: assignedColumn, totalColumns });
+    }
+
+    // Pass lại totalColumns đúng = số column thực sự dùng
+    const actualColumns = columnEndTimes.length;
+    for (const event of cluster) {
+      const existing = result.get(event.id);
+      if (existing) {
+        result.set(event.id, { ...existing, totalColumns: actualColumns });
+      }
+    }
+  }
+
+  return result;
 };
 
 const incomingDotColorMap: Record<CalendarEvent["tag"], string> = {
@@ -363,8 +374,9 @@ const buildCalendarEvent = (
   offsetMinutes: number,
   idSuffix?: string,
 ): CalendarEvent => {
+  const occurrenceIso = idSuffix ?? startDate.toISOString();
   return {
-    id: `${String(event.id)}-${idSuffix ?? startDate.toISOString()}`,
+    id: `${String(event.id)}-${occurrenceIso}`,
     title: event.title,
     description: event.description,
     recurrenceRule: event.rrule_string,
@@ -375,6 +387,10 @@ const buildCalendarEvent = (
     tag: mapStatusToTag(event.status),
     startEpoch: startDate.getTime(),
     endEpoch: endDate.getTime(),
+    rawId: String(event.id),
+    // master = chính nó nếu không có original_event_id, ngược lại là original
+    masterEventId: String(event.original_event_id ?? event.id),
+    occurrenceIso,
   };
 };
 
@@ -755,7 +771,17 @@ export default function SchedulePage() {
     };
   };
 
-  const isRecurringEvent = selectedEvent?.recurrenceRule != null;
+  const isRecurringEvent = useMemo(() => {
+    if (!selectedEvent) return false;
+    
+    // Có rrule → là master recurring event
+    if (selectedEvent.recurrenceRule != null) return true;
+    
+    // masterEventId khác rawId → là override/occurrence của một recurring event
+    if (selectedEvent.masterEventId !== selectedEvent.rawId) return true;
+    
+    return false;
+  }, [selectedEvent]);
 
   const handleSaveEvent = async () => {
     if (selectedEvent && isRecurringEvent) {
@@ -773,40 +799,35 @@ export default function SchedulePage() {
     executeDelete('all');
   }
 
-  const getRawId = () => {
-    // id format: "123-2026-03-21T09:00:00.000Z"
-    // rawId là phần trước dấu "-" đầu tiên
-    return selectedEvent?.id.split("-")[0] ?? "";
-  };
 
-  const getRecurrenceId = () => {
-    // phần sau rawId là ISO date của occurrence đó
-    const parts = selectedEvent?.id.split("-") ?? [];
-    return parts.slice(1).join("-"); // ghép lại phần còn lại
-  };
-
-  const executeSave = async (scope: 'this' | 'thisAndFollowing' | 'all') => {
+  const executeSave = async (scope: "this" | "thisAndFollowing" | "all") => {
     const payload = buildPayload();
-    const rawId = getRawId();
+    
+    // rawId dùng cho PUT (update chính node đó)
+    const rawId = selectedEvent?.rawId ?? "";
+    // masterEventId dùng cho split và exception (luôn trỏ về master)
+    const masterEventId = selectedEvent?.masterEventId ?? "";
+    const occurrenceIso = selectedEvent?.occurrenceIso ?? "";
 
     try {
       if (!selectedEvent) {
         await api.post("/users/schedule/events", payload);
-      } else if (scope === 'this') {
-        await api.post(`/users/schedule/events`, {
+      } else if (scope === "this") {
+        await api.post("/users/schedule/events", {
           ...payload,
-          original_event_id: rawId,
-          recurrence_id: getRecurrenceId(),
+          original_event_id: masterEventId, // ← luôn ref về master
+          recurrence_id: occurrenceIso,
           rrule_string: undefined,
         });
-      } else if (scope === 'thisAndFollowing') {
-        await api.post(`/users/schedule/events/${rawId}/split`, {
-          recurrence_id: getRecurrenceId(),
+      } else if (scope === "thisAndFollowing") {
+        await api.post(`/users/schedule/events/${masterEventId}/split`, { // ← masterEventId
+          recurrence_id: occurrenceIso,
           updates: payload,
         });
       } else {
-        await api.put(`/users/schedule/events/${rawId}`, payload);
+        await api.put(`/users/schedule/events/${rawId}`, payload); // ← rawId cho update thường
       }
+
       await refetchEvents();
       setSelectedEventId(null);
       setRecurringActionDialog(null);
@@ -815,20 +836,23 @@ export default function SchedulePage() {
     } finally {
       setRecurringActionDialog(null);
     }
-  }
+  };
 
-  const executeDelete = async (scope: 'this' | 'all') => {
-    const rawId = getRawId();
+  const executeDelete = async (scope: "this" | "all") => {
+    const masterEventId = selectedEvent?.masterEventId ?? "";
+    const rawId = selectedEvent?.rawId ?? "";
+    const occurrenceIso = selectedEvent?.occurrenceIso ?? "";
 
     try {
-      if (scope === 'this') {
-        await api.post(`/users/schedule/events/${rawId}/exceptions`, {
-            event_id: Number(rawId),
-            exception_date: getRecurrenceId(),
+      if (scope === "this") {
+        await api.post(`/users/schedule/events/${masterEventId}/exceptions`, { // ← masterEventId
+          event_id: Number(masterEventId),
+          exception_date: occurrenceIso,
         });
       } else {
         await api.delete(`/users/schedule/events/${rawId}`);
       }
+
       await refetchEvents();
       setSelectedEventId(null);
       setRecurringActionDialog(null);
@@ -837,7 +861,7 @@ export default function SchedulePage() {
     } finally {
       setRecurringActionDialog(null);
     }
-  }
+  };
 
 
   const refetchEvents = async () => {
@@ -1234,73 +1258,84 @@ export default function SchedulePage() {
                   </Box>
 
                   {/* Day columns */}
-                  {visibleDates.map((date, dayIndex) => (
-                    <Box
-                      key={`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`}
-                      sx={{
-                        position: "relative",
-                        borderRight: "1px solid #F2E8C8",
-                        display: "grid",
-                        gridTemplateRows: calendarGridRowTemplate,
-                      }}
-                    >
+                  {visibleDates.map((date, dayIndex) => {
+                    const dayEvents = groupedByVisibleDates[dayIndex];
+                    
+                    // Tính overlap layout cho ngày này
+                    const overlapMap = buildOverlapColumns(dayEvents);
+
+                    return (
                       <Box
+                        key={`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`}
                         sx={{
-                          px: 1.25,
-                          py: 1,
-                          borderBottom: "1px solid #F2E8C8",
-                          boxSizing: "border-box",
-                          backgroundColor: "#FFFEF8",
+                          position: "relative",
+                          borderRight: "1px solid #F2E8C8",
+                          display: "grid",
+                          gridTemplateRows: calendarGridRowTemplate,
                         }}
                       >
-                        <Typography sx={{ fontSize: 12, color: "#846A2B", fontWeight: 600 }}>
-                          {weekdayLabel(date)}
-                        </Typography>
-                      </Box>
-
-                      {hours.map((hour) => (
-                        <Box
-                          key={`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${hour}`}
-                          sx={{ borderBottom: "1px solid #F7EFCF", boxSizing: "border-box" }}
-                        />
-                      ))}
-
-                      {groupedByVisibleDates[dayIndex].map((event) => (
-                        <Box
-                          key={event.id}
-                          onClick={() => handleSelectEvent(event)}
-                          sx={{
-                            position: "absolute",
-                            left: 8,
-                            right: 8,
-                            top: calendarGridHeaderHeight + getTopOffset(event),
-                            height: getHeight(event),
-                            borderRadius: 1.5,
-                            p: 1,
-                            border: selectedEventId === event.id ? "1px solid #D5B13D" : "1px solid #F2D669",
-                            backgroundColor: selectedEventId === event.id ? "#FFED9B" : "#FFF5C9",
-                            boxShadow: selectedEventId === event.id
-                              ? "0 8px 14px rgba(214,169,46,0.2)"
-                              : "0 6px 12px rgba(233,186,48,0.15)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#4D3F15" }}>
-                            {event.title}
+                        {/* header và hour rows giữ nguyên */}
+                        <Box sx={{ px: 1.25, py: 1, borderBottom: "1px solid #F2E8C8", boxSizing: "border-box", backgroundColor: "#FFFEF8" }}>
+                          <Typography sx={{ fontSize: 12, color: "#846A2B", fontWeight: 600 }}>
+                            {weekdayLabel(date)}
                           </Typography>
-                          <Typography sx={{ fontSize: 10, color: "#7A6730", mt: 0.2 }}>
-                            {event.start} - {event.end}
-                          </Typography>
-                          <Chip
-                            label={event.tag}
-                            size="small"
-                            color={chipColorMap[event.tag]}
-                            sx={{ mt: 0.6, height: 18, "& .MuiChip-label": { px: 1, fontSize: 10 } }}
-                          />
                         </Box>
-                      ))}
-                    </Box>
-                  ))}
+                        {hours.map((hour) => (
+                          <Box
+                            key={`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${hour}`}
+                            sx={{ borderBottom: "1px solid #F7EFCF", boxSizing: "border-box" }}
+                          />
+                        ))}
+
+                        {/* Events với overlap handling */}
+                        {dayEvents.map((event) => {
+                          const overlap = overlapMap.get(event.id) ?? { column: 0, totalColumns: 1 };
+                          const PADDING = 8;
+                          const GAP = 3;
+                          const availableWidth = `calc(100% - ${PADDING * 2}px)`;
+                          const columnWidth = `calc((100% - ${PADDING * 2 + GAP * (overlap.totalColumns - 1)}px) / ${overlap.totalColumns})`;
+                          const leftOffset = `calc(${PADDING}px + ${overlap.column} * (${columnWidth} + ${GAP}px))`;
+
+                          return (
+                            <Box
+                              key={event.id}
+                              onClick={() => handleSelectEvent(event)}
+                              sx={{
+                                position: "absolute",
+                                left: leftOffset,
+                                width: columnWidth,
+                                top: calendarGridHeaderHeight + getTopOffset(event),
+                                height: getHeight(event),
+                                borderRadius: 1.5,
+                                p: 1,
+                                border: selectedEventId === event.id ? "1px solid #D5B13D" : "1px solid #F2D669",
+                                backgroundColor: selectedEventId === event.id ? "#FFED9B" : "#FFF5C9",
+                                boxShadow: selectedEventId === event.id
+                                  ? "0 8px 14px rgba(214,169,46,0.2)"
+                                  : "0 6px 12px rgba(233,186,48,0.15)",
+                                cursor: "pointer",
+                                overflow: "hidden",
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              <Typography sx={{ fontSize: 11, fontWeight: 700, color: "#4D3F15", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {event.title}
+                              </Typography>
+                              <Typography sx={{ fontSize: 10, color: "#7A6730", mt: 0.2 }}>
+                                {event.start} - {event.end}
+                              </Typography>
+                              <Chip
+                                label={event.tag}
+                                size="small"
+                                color={chipColorMap[event.tag]}
+                                sx={{ mt: 0.6, height: 18, "& .MuiChip-label": { px: 1, fontSize: 10 } }}
+                              />
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    );
+                  })}
                 </Box>
               </Box>
             </Box>
