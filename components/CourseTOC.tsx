@@ -30,7 +30,7 @@ import { Chapter } from "@/utils/dto/Chapter";
 import { useEffect, useState } from "react";
 import api from "@/api/api";
 import { useParams } from "next/navigation";
-import { useAlert } from "@/components/Alert";
+import { useAlert } from "@/components/alert";
 import { LessonDetail as LessonDetailDTO } from "@/utils/dto/Lesson";
 import { useRouter } from "next/navigation";
 import { useVideoProgress } from "@/app/authenticated/(user)/course/[course_id]/(lesson)/layout";

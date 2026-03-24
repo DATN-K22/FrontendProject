@@ -31,7 +31,7 @@ export default function Header() {
   const menus = [
     { label: "Home", path: "/authenticated/homepage" },
     { label: "My course", path: "/authenticated/my-course" },
-    { label: "Calendar", path: "/authenticated/calendar" },
+    { label: "Calendar", path: "/authenticated/schedule" },
   ];
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
