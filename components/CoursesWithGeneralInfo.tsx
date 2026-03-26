@@ -57,7 +57,7 @@ export default function CoursesWithGeneralInfo({
                   onClick={
                     isSkeleton
                       ? undefined
-                      : () => router.push(`/course/${item.id}`)
+                      : () => router.push(`/authenticated/course/${item.id}`)
                   }
                   sx={{
                     borderRadius: 4,

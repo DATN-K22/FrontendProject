@@ -65,7 +65,7 @@ const PaginationWrapper = styled(Box)(({ theme }) => ({
   paddingBottom: theme.spacing(2),
 }));
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 12;
 
 const DEFAULT_META: PaginationMeta = {
   totalItems: 0,
