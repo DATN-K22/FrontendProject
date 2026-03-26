@@ -42,7 +42,7 @@ import {
 } from "@mui/icons-material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useParams, useRouter } from "next/navigation";
-import { useAlert } from "@/components/Alert";
+import { useAlert } from "@/components/alert";
 import api from "@/api/api";
 import SafeHtml from "@/components/SafeHtml";
 import CircularProgressWithLabel from "@/components/CircularProgressWithLabel";

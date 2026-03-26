@@ -17,8 +17,8 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import api from "@/api/api";
 import { authUtils } from "@/utils/auth";
 import { useRouter } from "next/navigation";
-import { useLoading } from "@/components/Loading";
-import { useAlert } from "@/components/Alert";
+import { useLoading } from "@/components/loading";
+import { useAlert } from "@/components/alert";
 
 type RegisterResponse = {
   success: boolean;
@@ -98,18 +98,18 @@ export default function RegisterPage() {
         last_name: lastName,
       });
 
-      const { accessToken, role } = res.data.data;
+      const { tokens, user } = res.data.data;
 
-      if (!accessToken) {
+      if (!tokens.accessToken) {
         throw new Error("Login failed: no token returned");
       }
 
-      // authUtils.setAuth(accessToken, role);
+      authUtils.setAuth(tokens, user);
 
-      if (role === "admin") {
+      if (user.role === "admin") {
         window.location.href = "/admin";
       } else {
-        router.replace("/auth/login");
+        router.replace("/authenticated/hompage");
       }
     } catch (error: any) {
       console.error("Register error:", error);
