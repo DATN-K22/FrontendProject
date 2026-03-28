@@ -1,12 +1,23 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Box, TextField, Button, Typography, Link, InputAdornment, IconButton, Grid, Slide } from '@mui/material'
-import { Visibility, VisibilityOff } from '@mui/icons-material'
-import api from '@/api/api'
-import { authUtils } from '@/utils/auth'
-import { useRouter } from 'next/navigation'
-import { yellowTextFieldSx, tabButtonSx } from '@/utils/styles'
+import React, { useState } from "react";
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Link,
+  InputAdornment,
+  IconButton,
+  Grid,
+  Slide,
+} from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+import api from "@/api/api";
+import { authUtils } from "@/utils/auth";
+import { useRouter } from "next/navigation";
+import { useLoading } from "@/components/loading";
+import { useAlert } from "@/components/alert";
 
 type FormErrors = {
   firstName?: string
@@ -17,15 +28,29 @@ type FormErrors = {
 }
 
 export default function RegisterPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [errors, setErrors] = useState<FormErrors>({})
-  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [activeTab, setActiveTab] = useState<"login" | "register">("register");
+  const router = useRouter();
+  const [errors, setErrors] = useState<FormErrors>({});
+  const { showLoading, hideLoading } = useLoading();
+  const { showAlert } = useAlert();
+
+  const validateForm = () => {
+    const newErrors: FormErrors = {};
+
+    if (!firstName.trim()) {
+      newErrors.firstName = "First name is required";
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = "Last name is required";
+    }
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -55,7 +80,8 @@ export default function RegisterPage() {
     if (!validateForm()) return
 
     try {
-      const res = await api.post('/iam/auth/signup', {
+      showLoading();
+      const res = await api.post("/users/auth/signup", {
         email,
         password,
         first_name: firstName,
@@ -64,12 +90,27 @@ export default function RegisterPage() {
       const { accessToken, role } = res.data.data
       if (!accessToken) throw new Error('Register failed: no token returned')
 
-      authUtils.setAuth(accessToken, role)
-      window.location.href = role === 'admin' ? '/admin' : '/'
-    } catch (error: unknown) {
-      const message =
-        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Register failed!'
-      alert(message)
+      const { tokens, user } = res.data.data;
+
+      if (!tokens.accessToken) {
+        throw new Error("Login failed: no token returned");
+      }
+
+      authUtils.setAuth(tokens, user);
+
+      if (user.role === "admin") {
+        window.location.href = "/admin";
+      } else {
+        router.replace("/authenticated/hompage");
+      }
+    } catch (error: any) {
+      console.error("Register error:", error);
+
+      const message = error.response?.data?.message || "Register failed!";
+
+      showAlert(message, "error", { vertical: "bottom", horizontal: "left" });
+    } finally {
+      hideLoading();
     }
   }
 
@@ -222,8 +263,11 @@ export default function RegisterPage() {
                           edge='end'
                           sx={{ p: { xs: 0.5, md: 1 } }}
                         >
-                          {/* Fixed: was incorrectly using showPassword */}
-                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                          {showConfirmPassword ? (
+                            <VisibilityOff />
+                          ) : (
+                            <Visibility />
+                          )}
                         </IconButton>
                       </InputAdornment>
                     )

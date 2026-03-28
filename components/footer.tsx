@@ -36,9 +36,8 @@ export default function Footer() {
           fontSize: { xs: "0.98rem", md: "1.1rem" },
         }}
       >
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-        tempos Lorem ipsum dolor sitamet, consectetur adipiscing elit, sed do
-        eiusmod tempor
+        Build real-world cloud expertise with hands-on AWS labs, architecture
+        best practices, and AI-powered guidance whenever you need support.
       </Typography>
 
       <Button

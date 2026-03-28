@@ -12,13 +12,15 @@ import {
   InputAdornment,
   IconButton,
   Grid,
-  Slide
-} from '@mui/material'
-import { Visibility, VisibilityOff } from '@mui/icons-material'
-import api from '@/api/api'
-import { useRouter } from 'next/navigation'
-import { tabButtonSx, yellowTextFieldSx } from '@/utils/styles'
-import { authUtils } from '@/utils/auth'
+  Slide,
+} from "@mui/material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+import api from "@/api/api";
+import { useRouter } from "next/navigation";
+import { ApiResponse } from "@/utils/dto/ApiResponse";
+import { authUtils } from "@/utils/auth";
+import { useLoading } from "@/components/loading";
+import { useAlert } from "@/components/alert";
 
 type FormErrors = {
   email?: string
@@ -26,12 +28,22 @@ type FormErrors = {
 }
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
-  const [errors, setErrors] = useState<FormErrors>({})
-  const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const router = useRouter();
+  const [errors, setErrors] = useState<FormErrors>({});
+  const { showLoading, hideLoading } = useLoading();
+  const { showAlert } = useAlert();
+
+  const handleClickShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const validateForm = () => {
+    const newErrors: FormErrors = {};
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -52,18 +64,41 @@ export default function LoginPage() {
     if (!validateForm()) return
 
     try {
-      const res = await api.post('/iam/auth/signin', { email, password })
-      const { accessToken, role } = res.data.data
+      if (!validateForm()) return;
+      showLoading();
+      const res: ApiResponse = await api.post("/users/auth/signin", {
+        email,
+        password,
+      });
+      const { tokens, user } = res.data.data;
+      if (!tokens.access_token) {
+        throw new Error("Login failed: no token returned");
+      }
 
-      if (!accessToken) throw new Error('Login failed: no token returned')
+      authUtils.setAuth(tokens, user, rememberMe);
+
+      showAlert("Login successfully", "info", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
+      if (user.role === "admin") {
+        router.replace("/authenticated/admin");
+      } else {
+        router.replace("/authenticated/homepage");
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
 
       authUtils.setAuth(accessToken, role, rememberMe)
       window.location.href = role === 'admin' ? '/admin' : '/'
     } catch (error: unknown) {
       const message =
-        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Login failed. Please check your credentials.'
-      alert(message)
+        error.response?.data?.message ||
+        "Login failed. Please check your credentials.";
+
+      showAlert(message, "error", { vertical: "bottom", horizontal: "left" });
+    } finally {
+      hideLoading();
     }
   }
 
