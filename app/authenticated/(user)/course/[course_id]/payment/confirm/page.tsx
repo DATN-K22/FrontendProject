@@ -82,8 +82,8 @@ export default function ConfirmEnrollPage() {
             taxPercentage: 0,
           },
         ],
-        cancelUrl: `${baseUrl}/authenticated/course/${course.id}/payment/cancel?courseId=${course.id}`,
-        returnUrl: `${baseUrl}/authenticated/course/${course.id}/payment/success?courseId=${course.id}`,
+        cancelUrl: `${baseUrl}/authenticated/course/${course.id}`,
+        returnUrl: `${baseUrl}/authenticated/course/${course.id}`,
         invoice: {
           buyerNotGetInvoice: true,
           taxPercentage: 0,
