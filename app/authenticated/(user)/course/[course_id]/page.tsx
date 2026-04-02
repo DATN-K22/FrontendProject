@@ -42,10 +42,10 @@ import {
 } from "@mui/icons-material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useParams, useRouter } from "next/navigation";
-import { useAlert } from "@/components/Alert";
+import { useAlert } from "@/components/alert";
 import api from "@/api/api";
-import SafeHtml from "@/components/SafeHtml";
-import CircularProgressWithLabel from "@/components/CircularProgressWithLabel";
+import SafeHtml from "@/components/safeHtml";
+import CircularProgressWithLabel from "@/components/circularProgressWithLabel";
 import { Course } from "@/utils/dto/Course";
 import { Chapter } from "@/utils/dto/Chapter";
 import { LessonGeneral } from "@/utils/dto/Lesson";
@@ -659,6 +659,17 @@ export default function CourseDetail() {
                 variant="contained"
                 fullWidth
                 size="large"
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    courseId: String(course_id),
+                    courseName: course.title,
+                    price: String(course.price),
+                    thumbnail: course.thumbnail_url ?? "",
+                  });
+                  router.replace(
+                    `/authenticated/course/${course_id}/payment/confirm?${params}`,
+                  );
+                }}
                 disabled={course?.isEnrolled === true}
                 sx={{
                   bgcolor: "#ffd700",

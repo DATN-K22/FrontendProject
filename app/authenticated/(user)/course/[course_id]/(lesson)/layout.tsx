@@ -1,6 +1,6 @@
 "use client";
 import api from "@/api/api";
-import CourseTOC from "@/components/CourseTOC";
+import CourseTOC from "@/components/courseTOC";
 import { Box } from "@mui/material";
 import { createContext, useCallback, useContext, useState } from "react";
 

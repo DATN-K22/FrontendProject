@@ -31,7 +31,7 @@ import { LessonDetail } from "@/utils/dto/Lesson";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/api/api";
-import { useAlert } from "@/components/Alert";
+import { useAlert } from "@/components/alert";
 
 type LabHistory = {
   date: string;

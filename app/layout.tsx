@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "./providers";
-import { LoadingProvider } from "@/components/Loading";
-import { AlertProvider } from "@/components/Alert";
+import { LoadingProvider } from "@/components/loading";
+import { AlertProvider } from "@/components/alert";
+import "./globals.css";
+import "@calendarjs/ce/dist/style.css";
 
 export const metadata: Metadata = {
   title: "Next + MUI",

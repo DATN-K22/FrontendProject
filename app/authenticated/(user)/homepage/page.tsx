@@ -19,15 +19,16 @@ import WorkIcon from "@mui/icons-material/Work";
 import SchoolIcon from "@mui/icons-material/School";
 import StarIcon from "@mui/icons-material/Star";
 import { useRouter } from "next/navigation";
-import { useAlert } from "@/components/Alert";
+import { useAlert } from "@/components/alert";
 import { ApiResponse } from "@/utils/dto/ApiResponse";
 import CoursesWithProgress, {
   RelearningCourse,
-} from "@/components/CoursesWithProgress";
+} from "@/components/coursesWithProgress";
 import CoursesWithGeneralInfo, {
   CourseLevel,
   RecommendedCourse,
-} from "@/components/CoursesWithGeneralInfo";
+} from "@/components/coursesWithGeneralInfo";
+import { authUtils } from "@/utils/auth";
 
 /*=== Define type ===*/
 
@@ -44,13 +45,14 @@ export default function HomePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const { showAlert } = useAlert();
+  const { userData } = authUtils.getAuth();
   /*=== UseEffect hooks ===*/
   useEffect(() => {
     const fetchContent = async () => {
       try {
         setLoading(true);
         const incompleteCourses = await api.get(
-          "/courses/course/me/latest-incomplete?limit=3",
+          `/courses/course/me/${userData.id}/latest-incomplete?limit=3`,
         );
         const recommendationCourses: { data: { data: RecommendedCourse[] } } =
           await api.get("/courses/course/me/recommendation?offset=0&limit=8");
@@ -111,7 +113,7 @@ export default function HomePage() {
           py: { xs: 4, md: 5 },
           px: { xs: 2, sm: 3, md: 6 },
           minHeight: "60vh",
-
+          bgcolor: "#FAF9F4",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
@@ -214,10 +216,12 @@ export default function HomePage() {
 
   return (
     <Box>
-      <CoursesWithProgress
-        loading={loading}
-        reLearningCourse={reLearningCourse}
-      />
+      {reLearningCourse && reLearningCourse.length > 0 && (
+        <CoursesWithProgress
+          loading={loading}
+          reLearningCourse={reLearningCourse}
+        />
+      )}
       <CourseCategories />
 
       <Box

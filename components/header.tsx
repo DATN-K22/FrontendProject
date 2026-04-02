@@ -21,6 +21,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { usePathname, useRouter } from "next/navigation";
 import { authUtils } from "@/utils/auth";
 import { useState } from "react";
+import api from "@/api/api";
 
 export default function Header() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function Header() {
   const menus = [
     { label: "Home", path: "/authenticated/homepage" },
     { label: "My course", path: "/authenticated/course/my-courses" },
-    { label: "Calendar", path: "/authenticated/calendar" },
+    { label: "Calendar", path: "/authenticated/schedule" },
   ];
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -187,18 +188,17 @@ export default function Header() {
               <ListItemIcon>
                 <AccountCircleIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Account</ListItemText>
-            </MenuItem>
-
-            <MenuItem onClick={handleClose}>
-              <ListItemIcon>
-                <SettingsIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Settings</ListItemText>
+              <ListItemText
+                onClick={() => {
+                  router.push(`/authenticated/${userData.id}/profile`);
+                }}
+              >
+                Account
+              </ListItemText>
             </MenuItem>
 
             <MenuItem
-              onClick={() => {
+              onClick={async () => {
                 authUtils.clearAuth();
                 handleClose();
                 router.replace("/auth/login");
