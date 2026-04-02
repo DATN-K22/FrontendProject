@@ -380,7 +380,7 @@ export default function LoginPage() {
                     }
                   />
                   <Link
-                    href="#"
+                    href="/auth/forgot-password"
                     underline="hover"
                     sx={{
                       color: "text.primary",

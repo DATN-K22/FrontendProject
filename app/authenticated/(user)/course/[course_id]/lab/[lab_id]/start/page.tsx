@@ -15,10 +15,10 @@ import {
 } from "@mui/material";
 import { ContentCopy, AccessTime } from "@mui/icons-material";
 import { LessonDetail } from "@/utils/dto/Lesson";
-import VideoPlayer from "@/components/VideoPlayer";
+import VideoPlayer from "@/components/videoPlayer";
 import api from "@/api/api";
 import { useParams } from "next/navigation";
-import SafeHtml from "@/components/SafeHtml";
+import SafeHtml from "@/components/safeHtml";
 
 type LabCredentials = {
   url: string;
