@@ -1,3 +1,5 @@
+import api from '@/api/api'
+
 export const authUtils = {
   setAuth: (
     tokens: { access_token: string; refresh_token: string },
@@ -25,12 +27,21 @@ export const authUtils = {
     return { token, userData }
   },
 
-  clearAuth: () => {
+  clearAuth: async () => {
     if (typeof window === 'undefined') return
 
+    if (localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')) {
+      try {
+        await api.post('/users/auth/logout')
+      } catch (error) {
+        console.error('Error during logout:', error)
+      }
+    }
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('accessToken')
     localStorage.removeItem('userData')
 
+    sessionStorage.removeItem('refreshToken')
     sessionStorage.removeItem('accessToken')
     sessionStorage.removeItem('userData')
   }

@@ -31,6 +31,7 @@ import { LessonDetail } from "@/utils/dto/Lesson";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useParams, useRouter } from "next/navigation";
 import api from "@/api/api";
+import { useAlert } from "@/components/alert";
 
 type LabHistory = {
   date: string;
@@ -45,6 +46,8 @@ export default function LabOverview() {
   const [selectedMode, setSelectedMode] = useState<"guided" | "challenge">(
     "guided",
   );
+
+  const { showAlert } = useAlert();
   const router = useRouter();
   // Mock lab history - trong thực tế sẽ lấy từ API
   const [labHistory] = useState<LabHistory[]>([
@@ -73,9 +76,18 @@ export default function LabOverview() {
     }
   };
 
-  const handleStartLab = () => {
+  const handleStartLab = async () => {
     console.log(`Starting lab in ${selectedMode} mode`);
     // Implement lab start logic here
+    try {
+      await api.patch(`/courses/lessons/${course_id}/${lab_id}/status`);
+    } catch (error) {
+      showAlert("Failed to start the lab.", "error", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
+    }
+
     router.push(
       `/authenticated/course/${course_id}/lab/${lab_id}/start?mode=${selectedMode}`,
     );

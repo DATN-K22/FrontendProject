@@ -18,6 +18,7 @@ import { authUtils } from "@/utils/auth";
 import { useRouter } from "next/navigation";
 import { useLoading } from "@/components/loading";
 import { useAlert } from "@/components/alert";
+import { tabButtonSx, yellowTextFieldSx } from "@/utils/styles";
 
 type FormErrors = {
   firstName?: string

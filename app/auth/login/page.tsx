@@ -1,3 +1,4 @@
+// page.tsx
 'use client'
 
 import React, { useState } from 'react'
@@ -12,15 +13,15 @@ import {
   InputAdornment,
   IconButton,
   Grid,
-  Slide,
-} from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import api from "@/api/api";
-import { useRouter } from "next/navigation";
-import { ApiResponse } from "@/utils/dto/ApiResponse";
-import { authUtils } from "@/utils/auth";
-import { useLoading } from "@/components/loading";
-import { useAlert } from "@/components/alert";
+  Slide
+} from '@mui/material'
+import { Visibility, VisibilityOff } from '@mui/icons-material'
+import api from '@/api/api'
+import { useRouter } from 'next/navigation'
+import { ApiResponse } from '@/utils/dto/ApiResponse'
+import { authUtils } from '@/utils/auth'
+import { useLoading } from '@/components/loading'
+import { useAlert } from '@/components/alert'
 
 type FormErrors = {
   email?: string
@@ -28,77 +29,71 @@ type FormErrors = {
 }
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-  const [activeTab, setActiveTab] = useState<"login" | "register">("login");
-  const router = useRouter();
-  const [errors, setErrors] = useState<FormErrors>({});
-  const { showLoading, hideLoading } = useLoading();
-  const { showAlert } = useAlert();
+  const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
+  const router = useRouter()
+  const [errors, setErrors] = useState<FormErrors>({})
+  const { showLoading, hideLoading } = useLoading()
+  const { showAlert } = useAlert()
 
   const handleClickShowPassword = () => {
-    setShowPassword(!showPassword);
-  };
+    setShowPassword(!showPassword)
+  }
 
   const validateForm = () => {
-    const newErrors: FormErrors = {};
-
-  const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
+
     if (!email.trim()) {
       newErrors.email = 'Email is required'
     } else if (!/^\S+@\S+\.\S+$/.test(email)) {
       newErrors.email = 'Email is not valid'
     }
-    if (!password) {
+
+    if (!password.trim()) {
       newErrors.password = 'Password is required'
     }
     setErrors(newErrors)
+
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validateForm()) return
 
     try {
-      if (!validateForm()) return;
-      showLoading();
-      const res: ApiResponse = await api.post("/users/auth/signin", {
+      if (!validateForm()) return
+      showLoading()
+      const res: ApiResponse = await api.post('/users/auth/signin', {
         email,
-        password,
-      });
-      const { tokens, user } = res.data.data;
+        password
+      })
+      const { tokens, user } = res.data.data
       if (!tokens.access_token) {
-        throw new Error("Login failed: no token returned");
+        throw new Error('Login failed: no token returned')
       }
 
-      authUtils.setAuth(tokens, user, rememberMe);
+      authUtils.setAuth(tokens, user, rememberMe)
 
-      showAlert("Login successfully", "info", {
-        vertical: "bottom",
-        horizontal: "left",
-      });
-      if (user.role === "admin") {
-        router.replace("/authenticated/admin");
+      showAlert('Login successfully', 'info', {
+        vertical: 'bottom',
+        horizontal: 'left'
+      })
+      if (user.role === 'admin') {
+        router.replace('/authenticated/admin')
       } else {
-        router.replace("/authenticated/homepage");
+        router.replace('/authenticated/homepage')
       }
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error('Login error:', error)
 
-      authUtils.setAuth(accessToken, role, rememberMe)
-      window.location.href = role === 'admin' ? '/admin' : '/'
-    } catch (error: unknown) {
-      const message =
-        error.response?.data?.message ||
-        "Login failed. Please check your credentials.";
+      const message = error.response?.data?.message || 'Login failed. Please check your credentials.'
 
-      showAlert(message, "error", { vertical: "bottom", horizontal: "left" });
+      showAlert(message, 'error', { vertical: 'bottom', horizontal: 'left' })
     } finally {
-      hideLoading();
+      hideLoading()
     }
   }
 
@@ -109,12 +104,13 @@ export default function LoginPage() {
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
+          background: 'linear-gradient(135deg, #ffffffff 0%, #FFFFFF 100%)',
           py: { xs: 4, md: 0 },
           px: { xs: 2, sm: 3, md: 6 }
         }}
       >
         <Grid container spacing={{ xs: 2, md: 4 }} alignItems='center' sx={{ width: '100%' }}>
-          {/* Left side - Illustration */}
+          {/* Left side - Illustration (hidden on mobile) */}
           <Grid
             size={{ xs: 12, md: 6 }}
             sx={{
@@ -178,12 +174,48 @@ export default function LoginPage() {
                   mx: 'auto',
                   width: '100%',
                   maxWidth: { xs: '100%', sm: '400px' },
+                  justifyContent: 'center',
                   mb: { xs: 2, md: 4 },
                   p: { xs: 0.5, md: 1 }
                 }}
               >
-                <Button sx={tabButtonSx(true)}>Login</Button>
-                <Button onClick={() => router.replace('/auth/register')} sx={tabButtonSx(false)}>
+                <Button
+                  onClick={() => setActiveTab('login')}
+                  sx={{
+                    borderRadius: { xs: 4, md: 8 },
+                    backgroundColor: activeTab === 'login' ? '#FFD700' : 'transparent',
+                    color: '#000',
+                    textTransform: 'none',
+                    flex: 1,
+                    fontWeight: 600,
+                    py: { xs: 1, md: 1.5 },
+                    fontSize: { xs: '0.875rem', md: '1rem' },
+                    '&:hover': {
+                      backgroundColor: activeTab === 'login' ? '#FFD700' : 'rgba(255, 215, 0, 0.1)'
+                    }
+                  }}
+                >
+                  Login
+                </Button>
+                <Button
+                  onClick={() => {
+                    router.replace('/auth/register')
+                    setActiveTab('register')
+                  }}
+                  sx={{
+                    borderRadius: { xs: 4, md: 8 },
+                    flex: 1,
+                    backgroundColor: activeTab === 'register' ? '#FFD700' : 'transparent',
+                    color: '#000',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    py: { xs: 1, md: 1.5 },
+                    fontSize: { xs: '0.875rem', md: '1rem' },
+                    '&:hover': {
+                      backgroundColor: activeTab === 'register' ? '#FFD700' : 'rgba(255, 215, 0, 0.1)'
+                    }
+                  }}
+                >
                   Register
                 </Button>
               </Box>
@@ -194,7 +226,7 @@ export default function LoginPage() {
                 sx={{
                   mb: { xs: 2, md: 4 },
                   fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
-                  textAlign: 'justify'
+                  textAlign: { xs: 'justify', md: 'justify' }
                 }}
               >
                 Learnaide is AI-Powered Online Learning Platform with Personalized Course Paths and Virtual Assistant
@@ -209,16 +241,36 @@ export default function LoginPage() {
                     fontSize: { xs: '0.875rem', md: '1rem' }
                   }}
                 >
-                  Email Address
+                  User name or Email Address
                 </Typography>
                 <TextField
                   fullWidth
-                  placeholder='Enter your Email Address'
+                  placeholder='Enter your User name or Email Address'
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   error={!!errors.email}
                   helperText={errors.email}
-                  sx={{ mb: { xs: 2, md: 3 }, ...yellowTextFieldSx }}
+                  sx={{
+                    mb: { xs: 2, md: 3 },
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: { xs: 4, md: 8 },
+                      fontSize: { xs: '0.875rem', md: '1rem' },
+                      '& fieldset': {
+                        borderColor: '#FFD700',
+                        borderWidth: 2
+                      },
+                      '&:hover fieldset': {
+                        borderColor: '#FFD700'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#FFD700'
+                      },
+                      '& .MuiOutlinedInput-input': {
+                        py: { xs: 1.5, md: 2 },
+                        px: { xs: 2, md: 3 }
+                      }
+                    }
+                  }}
                 />
 
                 <Typography
@@ -243,16 +295,38 @@ export default function LoginPage() {
                     endAdornment: (
                       <InputAdornment position='end'>
                         <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={handleClickShowPassword}
                           edge='end'
-                          sx={{ p: { xs: 0.5, md: 1 } }}
+                          sx={{
+                            p: { xs: 0.5, md: 1 }
+                          }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
                       </InputAdornment>
                     )
                   }}
-                  sx={{ mb: 2, ...yellowTextFieldSx }}
+                  sx={{
+                    mb: 2,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: { xs: 4, md: 8 },
+                      fontSize: { xs: '0.875rem', md: '1rem' },
+                      '& fieldset': {
+                        borderColor: '#FFD700',
+                        borderWidth: 2
+                      },
+                      '&:hover fieldset': {
+                        borderColor: '#FFD700'
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#FFD700'
+                      },
+                      '& .MuiOutlinedInput-input': {
+                        py: { xs: 1.5, md: 2 },
+                        px: { xs: 2, md: 3 }
+                      }
+                    }
+                  }}
                 />
 
                 <Box
@@ -272,7 +346,9 @@ export default function LoginPage() {
                         onChange={(e) => setRememberMe(e.target.checked)}
                         sx={{
                           color: '#FFD700',
-                          '&.Mui-checked': { color: '#FFD700' }
+                          '&.Mui-checked': {
+                            color: '#FFD700'
+                          }
                         }}
                       />
                     }
@@ -288,12 +364,13 @@ export default function LoginPage() {
                     }
                   />
                   <Link
-                    href='/forgot-password'
+                    href='/auth/forgot-password'
                     underline='hover'
                     sx={{
                       color: 'text.primary',
                       fontSize: { xs: '0.875rem', md: '1rem' },
-                      fontWeight: 600
+                      fontWeight: '600',
+                      ml: { xs: 4, sm: 0 }
                     }}
                   >
                     Forgot Password?
@@ -312,7 +389,9 @@ export default function LoginPage() {
                     fontWeight: 600,
                     textTransform: 'none',
                     fontSize: { xs: '0.875rem', md: '1rem' },
-                    '&:hover': { backgroundColor: '#FFC700' }
+                    '&:hover': {
+                      backgroundColor: '#FFC700'
+                    }
                   }}
                 >
                   Login

@@ -25,7 +25,7 @@ import { useEffect, useRef, useState } from "react";
 import api from "@/api/api";
 import { useAlert } from "@/components/alert";
 import { LessonDetail as LessonDetailDTO } from "@/utils/dto/Lesson";
-import VideoPlayer from "@/components/VideoPlayer";
+import VideoPlayer from "@/components/videoPlayer";
 import { useVideoProgress } from "../layout";
 
 export default function LessonDetail() {
