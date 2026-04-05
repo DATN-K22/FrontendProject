@@ -1,0 +1,84 @@
+'use client'
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import { usePathname } from 'next/navigation'
+import { createContext, useContext } from 'react'
+
+// ─────────────────────────────────────────
+// Zustand store — persist qua F5
+// ─────────────────────────────────────────
+interface ChatWidgetStore {
+  isOpen: boolean
+  contextId: string | null
+
+  open: () => void
+  close: () => void
+  setContextId: (id: string | null) => void
+}
+
+const useChatStore = create<ChatWidgetStore>()(
+  persist(
+    (set) => ({
+      isOpen: false,
+      contextId: null as string | null,
+
+      open:  () => set({ isOpen: true }),
+      close: () => set({ isOpen: false }),
+      setContextId: (id: string | null) => 
+        set({ contextId: id }),
+    }),
+    {
+      name: 'chat-widget',
+      // Chỉ persist những field thật sự cần
+      partialize: (s) => ({
+        isOpen: s.isOpen,
+        contextId: s.contextId,
+      })
+    }
+  )
+)
+
+// ─────────────────────────────────────────
+// Context — truyền userId + pageContext
+// ─────────────────────────────────────────
+interface ChatWidgetContextValue {
+  userId: string | null
+  pageContext: PageContext
+  store: ChatWidgetStore
+}
+
+interface PageContext {
+    type: 'lesson' | 'course' | 'general'
+    courseId?: string
+    lessonId?: string
+}
+
+const chatWidgetContext = createContext<ChatWidgetContextValue | undefined>(undefined)
+
+export const ChatWidgetProvider: React.FC<{ userId: string | null, children: React.ReactNode }> = ({ userId, children }) => {
+  const store = useChatStore((state) => state)
+  const pathname = usePathname()
+
+  const pageContext = detectPageContext(pathname)
+
+  return (
+    <chatWidgetContext.Provider value={{ userId, pageContext, store }}>
+      {children}
+    </chatWidgetContext.Provider>
+  )
+}
+
+export const useChatWidget = () => useContext(chatWidgetContext)
+
+// ─────────────────────────────────────────
+// Helper
+// ─────────────────────────────────────────
+function detectPageContext(pathname: string): PageContext {
+  const lesson = pathname.match(/courses\/([^/]+)\/lessons\/([^/]+)/)
+  if (lesson) return { type: 'lesson', courseId: lesson[1], lessonId: lesson[2] }
+
+  const course = pathname.match(/courses\/([^/]+)/)
+  if (course) return { type: 'course', courseId: course[1] }
+
+  return { type: 'general' }
+}

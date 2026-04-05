@@ -5,6 +5,10 @@ import { LoadingProvider } from "@/components/loading";
 import { AlertProvider } from "@/components/alert";
 import "./globals.css";
 import "@calendarjs/ce/dist/style.css";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "Next + MUI",
@@ -17,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={cn("font-sans", geist.variable)}>
       <body suppressHydrationWarning>
         <Providers>
           <LoadingProvider>
