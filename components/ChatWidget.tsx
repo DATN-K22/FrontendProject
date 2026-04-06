@@ -30,8 +30,18 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useChatWidget } from "@/context/ChatWidgetContext";
 import api from "@/api/api"; 
+import { getAllTimezones, getTimezone } from "countries-and-timezones";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +52,7 @@ type ScheduleAction =
   | "update"
   | "delete"
   | "modify-this-and-following"
-  | "modify-this-and-only"
+  | "modify-this-only"
   | "add-exception-date";
 
 interface ScheduleChange {
@@ -176,6 +186,12 @@ interface SessionListItem {
   state?: Record<string, unknown>;
   last_update_time?: number;
   updated_at?: string;
+}
+
+interface TimezoneOption {
+  value: string;
+  label: string;
+  offsetMinutes: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -441,6 +457,21 @@ function groupLabelFromDate(value?: string): "Today" | "Yesterday" | "Earlier" {
   return "Earlier";
 }
 
+function formatGmtOffset(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteMinutes = Math.abs(offsetMinutes);
+  const hours = Math.floor(absoluteMinutes / 60);
+  const minutes = absoluteMinutes % 60;
+  if (minutes === 0) {
+    return `GMT${sign}${hours}`;
+  }
+  return `GMT${sign}${hours}:${minutes.toString().padStart(2, "0")}`;
+}
+
+function toReadableLocation(timezoneName: string): string {
+  return timezoneName.replace(/_/g, " ");
+}
+
 function parseResponse(raw: OrchestratorResponse): ParsedResponse {
   if (raw.error) {
     throw new Error(`A2A error ${raw.error.code}: ${raw.error.message}`);
@@ -567,12 +598,74 @@ export default function ChatWidget({
   const [isRestoring, setIsRestoring] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ConversationSummary[]>([]);
+  const [localSelectedTimezone, setLocalSelectedTimezone] = useState("Etc/UTC");
 
   const lastRestoredContextRef = useRef<string | null>(null);
 
   const isOpen = chatWidget?.store.isOpen ?? localOpen;
   const contextId = chatWidget?.store.contextId ?? localContextId;
+  const courseIdFromContext = chatWidget?.pageContext.courseId ?? null;
+
+  const timezoneOptions = useMemo<TimezoneOption[]>(() => {
+    try {
+      const zones = Object.entries(getAllTimezones());
+      return zones
+        .sort((left, right) => {
+          const offsetDiff = left[1].utcOffset - right[1].utcOffset;
+          if (offsetDiff !== 0) return offsetDiff;
+          return left[0].localeCompare(right[0]);
+        })
+        .map(([timezoneName, timezoneInfo]) => ({
+          value: timezoneName,
+          label: `${formatGmtOffset(timezoneInfo.utcOffset)} ${toReadableLocation(timezoneName)}`.trim(),
+          offsetMinutes: timezoneInfo.utcOffset,
+        }));
+    } catch {
+      return [
+        { value: "Etc/UTC", label: "GMT+0 UTC", offsetMinutes: 0 },
+        { value: "Asia/Ho_Chi_Minh", label: "GMT+7 Asia/Ho Chi Minh", offsetMinutes: 420 },
+      ];
+    }
+  }, []);
+
+  const defaultTimezone = useMemo(() => {
+    const detectedName = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const matchByName = timezoneOptions.find((option) => option.value === detectedName);
+    if (matchByName) return matchByName.value;
+
+    const detectedOffset = -new Date().getTimezoneOffset();
+    const matchByOffset = timezoneOptions.find((option) => option.offsetMinutes === detectedOffset);
+    if (matchByOffset) return matchByOffset.value;
+
+    const detectedTz = getTimezone(detectedName);
+    if (detectedTz) {
+      const fallbackByOffset = timezoneOptions.find((option) => option.offsetMinutes === detectedTz.utcOffset);
+      if (fallbackByOffset) return fallbackByOffset.value;
+    }
+
+    return timezoneOptions[0]?.value ?? "Etc/UTC";
+  }, [timezoneOptions]);
+  const selectedTimezone = chatWidget?.store.selectedTimezone ?? localSelectedTimezone;
+  const setSelectedTimezone = useCallback(
+    (timezone: string) => {
+      if (chatWidget) {
+        chatWidget.store.setSelectedTimezone(timezone);
+        return;
+      }
+      setLocalSelectedTimezone(timezone);
+    },
+    [chatWidget]
+  );
   const tenantIdToUse = tenantId || (chatWidget ? "course_" + chatWidget.pageContext.courseId : null) || "course_21";
+
+  useEffect(() => {
+    if (timezoneOptions.length === 0) return;
+
+    const hasSelectedTimezone = timezoneOptions.some((option) => option.value === selectedTimezone);
+    if (hasSelectedTimezone) return;
+
+    setSelectedTimezone(defaultTimezone);
+  }, [defaultTimezone, selectedTimezone, setSelectedTimezone, timezoneOptions]);
 
 
   const openWidget = useCallback(() => {
@@ -614,6 +707,11 @@ export default function ChatWidget({
 
   const conversationsEndpoint = useMemo(
     () => `${endpoint.replace(/\/$/, "")}/sessions`,
+    [endpoint]
+  );
+
+  const sessionStateEndpoint = useMemo(
+    () => `${endpoint.replace(/\/$/, "")}/session_state`,
     [endpoint]
   );
 
@@ -778,6 +876,8 @@ export default function ChatWidget({
       const stateDelta = shouldSetConversationTitle
         ? {
             conversation_title: text.length > 54 ? `${text.slice(0, 54)}...` : text,
+            timezone: selectedTimezone,
+            ...(courseIdFromContext ? { course_id: courseIdFromContext } : {}),
           }
         : null;
 
@@ -805,12 +905,40 @@ export default function ChatWidget({
           signal: controller.signal,
         });
 
-        return parseResponse(res.data as OrchestratorResponse);
+        const parsed = parseResponse(res.data as OrchestratorResponse);
+
+        if (shouldSetConversationTitle && parsed.contextId && stateDelta) {
+          const sessionStatePayload: {
+            session_id: string;
+            conversation_title: string;
+            timezone?: string;
+            course_id?: string;
+          } = {
+            session_id: parsed.contextId,
+            conversation_title: stateDelta.conversation_title,
+            timezone: stateDelta.timezone,
+            ...(courseIdFromContext ? { course_id: courseIdFromContext } : {}),
+          };
+
+          try {
+            await api.post(sessionStateEndpoint, sessionStatePayload, {
+              headers: {
+                "x-tenant-id": tenantIdToUse,
+                ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
+              },
+              signal: controller.signal,
+            });
+          } catch {
+            // Keep chat response successful even if session-state sync fails.
+          }
+        }
+
+        return parsed;
       } finally {
         setAbortController((prev) => (prev === controller ? null : prev));
       }
     },
-    [contextId, endpoint, tenantIdToUse]
+    [chatWidget?.userId, contextId, courseIdFromContext, endpoint, selectedTimezone, sessionStateEndpoint, tenantIdToUse]
   );
 
   const handleResponse = useCallback(
@@ -1075,6 +1203,22 @@ export default function ChatWidget({
                 </PromptInputBody>
                 <PromptInputFooter>
                   <PromptInputTools>
+                    <Select onValueChange={setSelectedTimezone} value={selectedTimezone}>
+                      <SelectTrigger className="h-7 max-w-52 gap-1 px-2 text-xs" size="sm">
+                        <PlusIcon className="size-3" />
+                        <SelectValue placeholder="Timezone" />
+                      </SelectTrigger>
+                      <SelectContent align="start" className="max-h-72">
+                        <SelectGroup>
+                          <SelectLabel>Select timezone</SelectLabel>
+                          {timezoneOptions.map((zone) => (
+                            <SelectItem key={zone.value} value={zone.value}>
+                              {zone.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                     <Button
                       className="h-7 px-3 text-xs"
                       disabled={!lastSubmittedPrompt || status === "submitted"}

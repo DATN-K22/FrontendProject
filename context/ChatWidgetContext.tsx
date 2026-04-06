@@ -10,10 +10,20 @@ import { createContext, useContext } from 'react'
 interface ChatWidgetStore {
   isOpen: boolean
   contextId: string | null
+  selectedTimezone: string
 
   open: () => void
   close: () => void
   setContextId: (id: string | null) => void
+  setSelectedTimezone: (timezone: string) => void
+}
+
+const getBrowserTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Etc/UTC'
+  } catch {
+    return 'Etc/UTC'
+  }
 }
 
 const useChatStore = create<ChatWidgetStore>()(
@@ -21,11 +31,14 @@ const useChatStore = create<ChatWidgetStore>()(
     (set) => ({
       isOpen: false,
       contextId: null as string | null,
+      selectedTimezone: getBrowserTimezone(),
 
       open:  () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
       setContextId: (id: string | null) => 
         set({ contextId: id }),
+      setSelectedTimezone: (timezone: string) =>
+        set({ selectedTimezone: timezone }),
     }),
     {
       name: 'chat-widget',
@@ -33,6 +46,7 @@ const useChatStore = create<ChatWidgetStore>()(
       partialize: (s) => ({
         isOpen: s.isOpen,
         contextId: s.contextId,
+        selectedTimezone: s.selectedTimezone,
       })
     }
   )
