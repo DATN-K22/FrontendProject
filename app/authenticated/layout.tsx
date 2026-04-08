@@ -27,9 +27,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     return null
   }
 
-  if (pathname.startsWith('/instructor') && userData.role !== 'instructor') {
-    return null
-  }
+  const isInstructor = pathname.includes('/instructor')
 
   return (
     <>

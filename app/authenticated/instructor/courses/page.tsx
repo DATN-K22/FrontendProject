@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { Box, Typography, Button, IconButton, Grid, Skeleton, Alert, Snackbar } from '@mui/material'
 import { Plus, MoreHorizontal, RefreshCw } from 'lucide-react'
 
@@ -7,12 +7,12 @@ import CourseCard from '@/components/instructor/courses/CourseCard'
 import CourseModal from '@/components/instructor/courses/CourseModal'
 import DeleteDialog from '@/components/instructor/courses/DeleteDialog'
 
-import { useCreateCourse, useUpdateCourse, useDeleteCourse } from '@/hooks/useCourses'
-import { getCoursesByOwner } from '@/api/courses/courseApi'
+import { useInstructorCoursesByOwner, useCreateCourse, useUpdateCourse, useDeleteCourse } from '@/hooks/useCourses'
 import type { CourseEntity, CreateCourseDto, UpdateCourseDto } from '@/api/courses/types'
+import { authUtils } from '@/utils/auth'
 
 // ─── TODO: thay bằng owner_id thật từ auth session ───────────────────────────
-const OWNER_ID = '019bfef8-084e-7ce2-aed8-c990c41d7045'
+const OWNER_ID = authUtils.getAuth().userData?.id
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 function CourseCardSkeleton() {
@@ -31,10 +31,6 @@ function CourseCardSkeleton() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<CourseEntity[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
-
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCourse, setEditingCourse] = useState<CourseEntity | null>(null)
 
@@ -47,30 +43,18 @@ export default function CoursesPage() {
     severity: 'success'
   })
 
+  // ── Load danh sách via hook ─────────────────────────────────────────────────
+  const {
+    courses,
+    loading: listLoading,
+    error: listError,
+    refetch: loadCourses,
+    setCourses
+  } = useInstructorCoursesByOwner(OWNER_ID)
+
   const { create, loading: createLoading, error: createError } = useCreateCourse()
   const { update, loading: updateLoading, error: updateError } = useUpdateCourse()
   const { remove, loading: deleteLoading } = useDeleteCourse()
-
-  // ── Load danh sách ──────────────────────────────────────────────────────────
-  const loadCourses = useCallback(async () => {
-    setListLoading(true)
-    setListError(null)
-    try {
-      const res = await getCoursesByOwner(OWNER_ID)
-      console.log('Fetched courses:', res.data) // Debug log
-      // backend có thể trả data là array hoặc object có items
-      const list = Array.isArray(res.data) ? res.data : res.data.courses
-      setCourses(list)
-    } catch (e) {
-      setListError(e instanceof Error ? e.message : 'Không thể tải danh sách khóa học')
-    } finally {
-      setListLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadCourses()
-  }, [loadCourses])
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const showToast = (message: string, severity: 'success' | 'error' = 'success') =>
@@ -190,7 +174,7 @@ export default function CoursesPage() {
 
       {/* Error */}
       {listError && (
-        <Alert severity='error' sx={{ mb: 3, borderRadius: '12px' }} onClose={() => setListError(null)}>
+        <Alert severity='error' sx={{ mb: 3, borderRadius: '12px' }} onClose={() => {}}>
           {listError}
         </Alert>
       )}
