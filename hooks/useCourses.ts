@@ -70,7 +70,12 @@ export function useCreateCourse() {
     setLoading(true)
     setError(null)
     try {
-      const res = await api.post<ApiResponse<CourseEntity>>('/courses/course', dto)
+      // Đảm bảo price là number khi gửi lên API
+      const payload = {
+        ...dto,
+        price: dto.price ? Number(dto.price) : 0
+      }
+      const res = await api.post<ApiResponse<CourseEntity>>('/courses/course', payload)
       return res.data.data
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create course')
@@ -92,7 +97,12 @@ export function useUpdateCourse() {
     setLoading(true)
     setError(null)
     try {
-      const res = await api.patch<ApiResponse<CourseEntity>>(`/courses/course/${id}`, dto)
+      // Đảm bảo price là number khi gửi lên API nếu có
+      const payload = {
+        ...dto,
+        ...(dto.price !== undefined ? { price: Number(dto.price) } : {})
+      }
+      const res = await api.patch<ApiResponse<CourseEntity>>(`/courses/course/${id}`, payload)
       return res.data.data
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update course')

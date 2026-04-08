@@ -1,7 +1,8 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Box, Typography, Button, IconButton, Grid, Skeleton, Alert, Snackbar } from '@mui/material'
 import { Plus, MoreHorizontal, RefreshCw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 import CourseCard from '@/components/instructor/courses/CourseCard'
 import CourseModal from '@/components/instructor/courses/CourseModal'
@@ -43,6 +44,11 @@ export default function CoursesPage() {
     severity: 'success'
   })
 
+  const router = useRouter()
+  const goToChapters = (courseId: string) => {
+    router.push(`/authenticated/instructor/courses/${courseId}/chapters`)
+  }
+
   // ── Load danh sách via hook ─────────────────────────────────────────────────
   const {
     courses,
@@ -76,13 +82,24 @@ export default function CoursesPage() {
   // ── Create / Update ─────────────────────────────────────────────────────────
   async function handleSubmit(data: CreateCourseDto | UpdateCourseDto) {
     if (editingCourse) {
-      const updated = await update(editingCourse.id, data as UpdateCourseDto)
+      // Không truyền owner_id khi update, loại bỏ các trường rỗng/undefined
+      const updateData = { ...(data as UpdateCourseDto) }
+      delete (updateData as any).owner_id
+      // Loại bỏ các trường rỗng hoặc undefined
+      Object.keys(updateData).forEach((key) => {
+        const value = (updateData as any)[key]
+        if (value === '' || value === undefined) {
+          delete (updateData as any)[key]
+        }
+      })
+      const updated = await update(editingCourse.id, updateData)
       if (updated) {
         setCourses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
         setModalOpen(false)
         showToast('Cập nhật khóa học thành công')
       }
     } else {
+      // Khi tạo phải truyền owner_id
       const created = await create({ ...(data as CreateCourseDto), owner_id: OWNER_ID })
       if (created) {
         setCourses((prev) => [created, ...prev])
@@ -214,7 +231,12 @@ export default function CoursesPage() {
           </Grid>
         ) : (
           courses.map((course) => (
-            <Grid key={course.id} size={{ xs: 12, sm: 6, lg: 4 }}>
+            <Grid
+              key={course.id}
+              size={{ xs: 12, sm: 6, lg: 4 }}
+              onClick={() => goToChapters(course.id)}
+              sx={{ cursor: 'pointer' }}
+            >
               <CourseCard course={course} onEdit={openEdit} onDelete={openDelete} />
             </Grid>
           ))
