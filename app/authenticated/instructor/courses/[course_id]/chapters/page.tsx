@@ -37,14 +37,21 @@ export default function ChaptersPage() {
 
   async function handleSubmit(data) {
     if (editingChapter) {
-      const updated = await update(editingChapter.id, data)
+      // Chỉ lấy các trường cần thiết khi update
+      const updateData = {
+        title: data.title,
+        status: data.status,
+        sort_order: data.sort_order
+      }
+      const updated = await update(editingChapter.id, updateData)
       if (updated) {
         setChapters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
         setModalOpen(false)
         showToast('Cập nhật chapter thành công')
       }
     } else {
-      const created = await create({ ...data, course_id })
+      // Khi tạo mới, truyền course_id là số
+      const created = await create({ ...data, course_id: Number(course_id) })
       if (created) {
         setChapters((prev) => [created, ...prev])
         setModalOpen(false)

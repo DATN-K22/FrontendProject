@@ -8,7 +8,8 @@ import {
   Button,
   Box,
   Typography,
-  CircularProgress
+  CircularProgress,
+  MenuItem
 } from '@mui/material'
 
 const EMPTY = { title: '', status: 'draft', sort_order: 1 }
@@ -44,9 +45,9 @@ export default function ChapterModal({ open, onClose, onSubmit, editingChapter, 
             onChange={(e) => set('status', e.target.value)}
             fullWidth
           >
-            <option value='draft'>Draft</option>
-            <option value='published'>Published</option>
-            <option value='archived'>Archived</option>
+            <MenuItem value='draft'>Draft</MenuItem>
+            <MenuItem value='published'>Published</MenuItem>
+            <MenuItem value='archived'>Archived</MenuItem>
           </TextField>
           {error && <Typography color='error'>{error}</Typography>}
         </Box>

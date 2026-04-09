@@ -66,7 +66,7 @@ if (typeof window !== 'undefined') {
 
       if (!refreshToken) {
         isRefreshing = false
-        window.location.href = '/login'
+        window.location.href = '/auth/login'
         return Promise.reject(error)
       }
 
@@ -95,7 +95,7 @@ if (typeof window !== 'undefined') {
           sessionStorage.removeItem('accessToken')
           sessionStorage.removeItem('refreshToken')
 
-          window.location.href = '/login'
+          window.location.href = '/auth/login'
 
           reject(refreshError)
         } finally {
