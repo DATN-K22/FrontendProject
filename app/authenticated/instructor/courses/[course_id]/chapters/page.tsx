@@ -1,13 +1,14 @@
 'use client'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Box, Typography, Button, IconButton, Grid, Alert, Snackbar } from '@mui/material'
-import { Plus, RefreshCw } from 'lucide-react'
+import { Plus, RefreshCw, ArrowLeft } from 'lucide-react'
 import { useChaptersByCourse, useCreateChapter, useUpdateChapter, useDeleteChapter } from '@/hooks/useChapters'
 import ChapterModal from '@/components/instructor/courses/ChapterModal'
 
 export default function ChaptersPage() {
   const { course_id } = useParams()
+  const router = useRouter()
   const { chapters, loading, error, refetch, setChapters } = useChaptersByCourse(course_id)
   const { create, loading: createLoading, error: createError } = useCreateChapter()
   const { update, loading: updateLoading, error: updateError } = useUpdateChapter()
@@ -35,6 +36,11 @@ export default function ChaptersPage() {
     } else showToast('Xóa thất bại', 'error')
   }
 
+  // Điều hướng sang trang lesson của chapter
+  const goToLessons = (chapter_id) => {
+    router.push(`/authenticated/instructor/courses/${course_id}/chapters/${chapter_id}`)
+  }
+
   async function handleSubmit(data) {
     if (editingChapter) {
       // Chỉ lấy các trường cần thiết khi update
@@ -51,7 +57,7 @@ export default function ChaptersPage() {
       }
     } else {
       // Khi tạo mới, truyền course_id là số
-      const created = await create({ ...data, course_id: Number(course_id) })
+      const created = await create({ ...data, course_id: String(course_id) })
       if (created) {
         setChapters((prev) => [created, ...prev])
         setModalOpen(false)
@@ -62,10 +68,15 @@ export default function ChaptersPage() {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant='h5' fontWeight={700}>
+      {/* Nút back */}
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <IconButton onClick={() => router.push(`/authenticated/instructor/courses`)}>
+          <ArrowLeft size={22} />
+        </IconButton>
+        <Typography variant='h5' fontWeight={700} sx={{ ml: 1 }}>
           Chapters
         </Typography>
+        <Box sx={{ flex: 1 }} />
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={refetch} disabled={loading} startIcon={<RefreshCw size={14} />}>
             Refresh
@@ -79,7 +90,18 @@ export default function ChaptersPage() {
       <Grid container spacing={2}>
         {chapters.map((chapter) => (
           <Grid item xs={12} md={6} key={chapter.id}>
-            <Box sx={{ border: '1px solid #e2e8f0', borderRadius: 2, p: 2, bgcolor: '#fff' }}>
+            <Box
+              sx={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 2,
+                p: 2,
+                bgcolor: '#fff',
+                cursor: 'pointer',
+                transition: 'box-shadow 0.2s',
+                '&:hover': { boxShadow: 2 }
+              }}
+              onClick={() => goToLessons(chapter.id)}
+            >
               <Typography fontWeight={600}>{chapter.title}</Typography>
               <Typography variant='body2' color='text.secondary'>
                 Status: {chapter.status}
@@ -88,14 +110,35 @@ export default function ChaptersPage() {
                 Sort: {chapter.sort_order}
               </Typography>
               <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
-                <Button size='small' onClick={() => openEdit(chapter)}>
+                <Button
+                  size='small'
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openEdit(chapter)
+                  }}
+                >
                   Edit
                 </Button>
-                <Button size='small' color='error' onClick={() => handleDelete(chapter.id)}>
+                <Button
+                  size='small'
+                  color='error'
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDelete(chapter.id)
+                  }}
+                >
                   Delete
                 </Button>
+                <Button
+                  size='small'
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    goToLessons(chapter.id)
+                  }}
+                >
+                  View Lessons
+                </Button>
               </Box>
-              {/* Hiển thị lesson nếu muốn */}
             </Box>
           </Grid>
         ))}
