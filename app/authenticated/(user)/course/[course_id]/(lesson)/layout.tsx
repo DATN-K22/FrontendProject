@@ -43,9 +43,9 @@ export default function LearnLayout({
         sx={{
           display: "flex",
           background: "linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 100%)",
-          gap: 3,
+          gap: 1,
           py: 4,
-          px: 2,
+          px: 4,
         }}
       >
         <Box
