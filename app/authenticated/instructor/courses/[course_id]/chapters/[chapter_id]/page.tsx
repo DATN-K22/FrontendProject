@@ -2,9 +2,10 @@
 import { useParams, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Box, Typography, Button, IconButton, Grid, Alert, Snackbar } from '@mui/material'
-import { Plus, RefreshCw, ArrowLeft } from 'lucide-react'
+import { Plus, RefreshCw, ArrowLeft, FolderOpen } from 'lucide-react'
 import { useLessonsByChapter, useCreateLesson, useUpdateLesson, useDeleteLesson } from '@/hooks/useLessons'
 import LessonModal from '@/components/instructor/courses/LessonModal'
+import ResourceModal from '@/components/instructor/courses/ResourceModal'
 
 export default function LessonsPage() {
   const { course_id, chapter_id } = useParams()
@@ -16,6 +17,8 @@ export default function LessonsPage() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingLesson, setEditingLesson] = useState(null)
+  const [resourceModalOpen, setResourceModalOpen] = useState(false)
+  const [selectedLesson, setSelectedLesson] = useState(null)
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' })
 
   useEffect(() => {
@@ -99,6 +102,9 @@ export default function LessonsPage() {
                 <Button size='small' onClick={() => openEdit(lesson)}>
                   Edit
                 </Button>
+                <Button size='small' color='primary' onClick={() => { setSelectedLesson(lesson); setResourceModalOpen(true); }} startIcon={<FolderOpen size={14} />}>
+                  Resources
+                </Button>
                 <Button size='small' color='error' onClick={() => handleDelete(lesson.id)}>
                   Delete
                 </Button>
@@ -114,6 +120,13 @@ export default function LessonsPage() {
         editingLesson={editingLesson}
         loading={createLoading || updateLoading}
         error={createError || updateError}
+      />
+      <ResourceModal
+        open={resourceModalOpen}
+        onClose={() => setResourceModalOpen(false)}
+        lessonId={selectedLesson?.id}
+        courseId={course_id as string}
+        lessonTitle={selectedLesson?.title || ''}
       />
       <Snackbar
         open={toast.open}

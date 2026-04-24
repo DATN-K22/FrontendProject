@@ -59,3 +59,35 @@ export interface CreateCourseDto {
 
 // ─── UpdateCourseDto ──────────────────────────────────────────────────────────
 export type UpdateCourseDto = Partial<CreateCourseDto>
+
+// ─── File Resource ────────────────────────────────────────────────────────────
+export type FileResourceType = 'video' | 'document' | 'image'
+
+export interface FileResource {
+  id: string | number
+  title: string
+  type: FileResourceType
+  filename: string
+  lesson_id: string
+  course_id?: string
+  created_at: string
+  updated_at?: string
+  link?: string | null
+  thumb?: string | null
+  manifest_url?: string | null
+  path?: string
+}
+
+export interface LessonResources {
+  video: FileResource[]
+  document: FileResource[]
+  image: FileResource[]
+}
+
+export interface CreateFileDto {
+  title: string
+  type: FileResourceType
+  filename: string
+  lesson_id: string
+  course_id: string
+}

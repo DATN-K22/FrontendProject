@@ -18,7 +18,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
       return
     }
 
-    if (pathname.startsWith('/instructor') && userData.role !== 'instructor') {
+    if (pathname.startsWith('/instructor') && userData.role !== 'teacher') {
       router.replace('/403')
     }
   }, [token, userData, pathname, router])
