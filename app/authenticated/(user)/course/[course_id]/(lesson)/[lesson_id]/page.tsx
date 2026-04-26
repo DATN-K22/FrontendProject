@@ -24,25 +24,59 @@ import {
 import { useEffect, useRef, useState } from "react";
 import api from "@/api/api";
 import { useAlert } from "@/components/alert";
-import { LessonDetail as LessonDetailDTO } from "@/utils/dto/Lesson";
-import VideoPlayer from "@/components/VideoPlayer";
+import VideoPlayer from "@/components/videoPlayer";
 import { useVideoProgress } from "../layout";
+import { authUtils } from "@/utils/auth";
+
+// Define type theo API response thực tế
+type ChapterItemDetail = {
+  id: string;
+  title: string;
+  status: string;
+  type: "lesson" | "lab" | "quiz";
+  sort_order: number;
+  short_description: string;
+  long_description: string;
+  duration: number;
+  isFinished: boolean;
+  chapter: any;
+  resources?: {
+    video: { link: string; title: string }[];
+    document: { link: string; title: string }[];
+  };
+  // quiz only
+  questions?: {
+    id: string;
+    question_text: string;
+    questionType: string;
+    options: {
+      id: string;
+      option_text: string;
+      is_correct: boolean;
+      description: string;
+      reason: string;
+    }[];
+  }[];
+};
 
 export default function LessonDetail() {
   const { lesson_id, course_id } = useParams();
+  const { userData } = authUtils.getAuth();
   const [tabValue, setTabValue] = useState(0);
   const { handleProgress90 } = useVideoProgress();
-  const [data, setData] = useState<LessonDetailDTO | null>(null);
+  const [data, setData] = useState<ChapterItemDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const { showAlert } = useAlert();
   const router = useRouter();
+
   useEffect(() => {
     const fetchChapterLesson = async () => {
       try {
         setLoading(true);
-        const lessonResponse = await api.get(`/courses/lessons/${lesson_id}`);
-        const responseData: LessonDetailDTO = lessonResponse.data.data;
-        setData(responseData);
+        const response = await api.get(
+          `/courses/lessons/${lesson_id}/${userData?.id}`,
+        );
+        setData(response.data.data);
       } catch (error) {
         console.error("Error fetching course:", error);
         showAlert("Failed to fetch detail of the course", "error", {
@@ -56,15 +90,10 @@ export default function LessonDetail() {
     fetchChapterLesson();
   }, [lesson_id]);
 
-  const lesson = data;
-
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-      }}
-    >
+    <Box sx={{ minHeight: "100vh" }}>
       <Container maxWidth="xl">
+        {/* Header */}
         <Box
           sx={{
             background: "white",
@@ -91,31 +120,31 @@ export default function LessonDetail() {
             <VideoLibrary sx={{ color: "white", fontSize: 32 }} />
           </Box>
           <Box sx={{ flex: 1 }}>
-            {loading || !lesson ? (
+            {loading || !data ? (
               <>
                 <Skeleton width={200} height={28} />
                 <Skeleton width={140} height={20} />
               </>
             ) : (
-              <>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 600,
-                    color: "#1a1a1a",
-                    mb: 0.5,
-                    fontFamily: "'Poppins', sans-serif",
-                  }}
-                >
-                  Lesson: {lesson?.title ?? "Loading..."}
-                </Typography>
-              </>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 600,
+                  color: "#1a1a1a",
+                  mb: 0.5,
+                  fontFamily: "'Poppins', sans-serif",
+                }}
+              >
+                {data.type.charAt(0).toUpperCase() + data.type.slice(1)}:{" "}
+                {data.title}
+              </Typography>
             )}
           </Box>
         </Box>
 
+        {/* Content */}
         <Box sx={{ display: "flex", gap: 3 }}>
-          {loading || !lesson ? (
+          {loading || !data ? (
             <Skeleton
               variant="rectangular"
               width="100%"
@@ -123,7 +152,8 @@ export default function LessonDetail() {
             />
           ) : (
             <>
-              {lesson.type === "video" && (
+              {/* Lesson — có video/description/resource tabs */}
+              {data.type === "lesson" && (
                 <Box sx={{ flex: 1 }}>
                   <Box
                     sx={{ background: "white", borderRadius: "20px 20px 0 0" }}
@@ -156,7 +186,7 @@ export default function LessonDetail() {
                     </Tabs>
                   </Box>
 
-                  {/* Tab Panel: Tutorial Videos */}
+                  {/* Tab: Video */}
                   <Box
                     sx={{
                       display: tabValue === 0 ? "block" : "none",
@@ -176,29 +206,28 @@ export default function LessonDetail() {
                         justifyContent: "center",
                       }}
                     >
-                      {loading || !lesson?.resources?.video.length ? (
+                      {!data.resources?.video?.length ? (
                         <Skeleton
                           variant="rectangular"
                           width="100%"
                           height="100%"
-                          sx={{ borderRadius: 2 }}
                         />
                       ) : (
                         <VideoPlayer
-                          onProgress90={() =>
+                          onProgress90={() => {
                             handleProgress90(
                               lesson_id as string,
                               course_id as string,
-                            )
-                          }
-                          isFinished={lesson.isFinished}
-                          url={lesson.resources?.video[0].link || ""}
+                            );
+                          }}
+                          isFinished={data.isFinished}
+                          url={data.resources.video[0].link}
                         />
                       )}
                     </Box>
                   </Box>
 
-                  {/* Tab Panel: Description */}
+                  {/* Tab: Description */}
                   <Box
                     sx={{
                       display: tabValue === 1 ? "block" : "none",
@@ -208,51 +237,40 @@ export default function LessonDetail() {
                       boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                     }}
                   >
-                    {loading || !lesson ? (
-                      <>
-                        <Skeleton width="60%" height={28} sx={{ mb: 1 }} />
-                        <Skeleton width="100%" height={20} />
-                        <Skeleton width="90%" height={20} />
-                        <Skeleton width="80%" height={20} />
-                      </>
-                    ) : (
-                      <>
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            fontWeight: 600,
-                            fontFamily: "'Poppins', sans-serif",
-                            mb: 1,
-                          }}
-                        >
-                          {lesson?.title}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: "#555",
-                            fontFamily: "'Inter', sans-serif",
-                            fontWeight: 500,
-                            mb: 1,
-                          }}
-                        >
-                          {lesson?.short_description}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color: "#777",
-                            fontFamily: "'Inter', sans-serif",
-                            lineHeight: 1.8,
-                          }}
-                        >
-                          {lesson?.long_description}
-                        </Typography>
-                      </>
-                    )}
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        fontFamily: "'Poppins', sans-serif",
+                        mb: 1,
+                      }}
+                    >
+                      {data.title}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "#555",
+                        fontFamily: "'Inter', sans-serif",
+                        fontWeight: 500,
+                        mb: 1,
+                      }}
+                    >
+                      {data.short_description}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "#777",
+                        fontFamily: "'Inter', sans-serif",
+                        lineHeight: 1.8,
+                      }}
+                    >
+                      {data.long_description}
+                    </Typography>
                   </Box>
 
-                  {/* Tab Panel: Resource */}
+                  {/* Tab: Resource */}
                   <Box
                     sx={{
                       display: tabValue === 2 ? "block" : "none",
@@ -262,12 +280,9 @@ export default function LessonDetail() {
                       boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                     }}
                   >
-                    {loading || !lesson ? (
-                      <Skeleton width="100%" height={40} />
-                    ) : lesson?.resources?.document &&
-                      lesson.resources.document.length > 0 ? (
+                    {data.resources?.document?.length ? (
                       <List disablePadding>
-                        {lesson.resources.document.map((resource, idx) => (
+                        {data.resources.document.map((resource, idx) => (
                           <ListItem
                             key={idx}
                             sx={{
@@ -326,9 +341,8 @@ export default function LessonDetail() {
                 </Box>
               )}
 
-              {(lesson.type === "lab" ||
-                lesson.type === "quiz" ||
-                lesson.type === "assignment") && (
+              {/* Lab hoặc Quiz — button navigate */}
+              {(data.type === "lab" || data.type === "quiz") && (
                 <Box sx={{ flex: 1 }}>
                   <Box
                     sx={{
@@ -354,7 +368,7 @@ export default function LessonDetail() {
                         size="large"
                         onClick={() =>
                           router.push(
-                            `/authenticated/course/${course_id}/lab/${lesson_id}/overview`,
+                            `/authenticated/course/${course_id}/${data.type}/${lesson_id}/overview`,
                           )
                         }
                         sx={{
@@ -375,8 +389,7 @@ export default function LessonDetail() {
                         }}
                       >
                         Take{" "}
-                        {lesson.type.charAt(0).toUpperCase() +
-                          lesson.type.slice(1)}
+                        {data.type.charAt(0).toUpperCase() + data.type.slice(1)}
                       </Button>
                     </Box>
                   </Box>

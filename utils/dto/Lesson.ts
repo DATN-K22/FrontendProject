@@ -8,8 +8,9 @@ export type LessonDetail = {
   short_description: string;
   long_description: string;
   sort_order: number;
-  duration?: number; // in seconds
+  duration?: number;
   isFinished: boolean;
+  leaseTemplateId?: string;
   resources?: {
     video: {
       id: string;

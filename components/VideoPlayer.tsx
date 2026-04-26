@@ -82,7 +82,12 @@ export default function VideoPlayer({
   useEffect(() => {
     if (!hasTriggered90 && duration > 0 && currentTime >= duration * 0.9) {
       setHasTriggered90(true);
-      if (!isFinished) onProgress90?.();
+      console.log("Video reached 90% progress");
+      console.log("isFinished:", isFinished);
+      if (!isFinished) {
+        console.log("Triggering onProgress90 callback...");
+        onProgress90?.();
+      }
     }
   }, [currentTime, duration, hasTriggered90, onProgress90, isFinished]);
 
