@@ -12,6 +12,7 @@ import {
   Chip,
   Skeleton,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
 import {
   AccessTime,
@@ -19,6 +20,11 @@ import {
   Cancel,
   Warning,
   CalendarToday,
+  PlayCircle,
+  HourglassEmpty,
+  Schedule,
+  Help,
+  CalendarMonth,
 } from "@mui/icons-material";
 import { LessonDetail } from "@/utils/dto/Lesson";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -27,7 +33,15 @@ import api from "@/api/api";
 import { useAlert } from "@/components/alert";
 import { authUtils } from "@/utils/auth";
 
-type LabHistoryStatus = "complete" | "fail" | "timeout" | "running" | "unknown";
+type LabHistoryStatus =
+  | "complete"
+  | "fail"
+  | "timeout"
+  | "running"
+  | "unknown"
+  | "cancel"
+  | "provisioning"
+  | "pending";
 
 type LabHistory = {
   uuid: string;
@@ -35,6 +49,7 @@ type LabHistory = {
   status: LabHistoryStatus;
   leaseDurationInHours: number;
   templateName: string;
+  leaseId: string;
 };
 
 // Map API status string → display status
@@ -42,14 +57,31 @@ const mapApiStatus = (apiStatus: string): LabHistoryStatus => {
   switch (apiStatus) {
     case "Active":
       return "running";
+
+    case "Provisioning":
+      return "provisioning";
+
     case "Expired":
+    case "BudgetExceeded":
       return "timeout";
+
     case "ManuallyTerminated":
-    case "Complete":
+    case "Ejected":
+    case "ApprovalDenied":
+    case "Frozen":
+      return "cancel";
+
+    case "Completed":
       return "complete";
-    case "Terminated":
+
     case "Error":
+    case "ProvisioningFailed":
+    case "AccountQuarantined":
       return "fail";
+
+    case "PendingApproval":
+      return "pending"; // hoặc tách thêm status nếu muốn hiển thị riêng
+
     default:
       return "unknown";
   }
@@ -62,7 +94,7 @@ export default function LabOverview() {
   const [loading, setLoading] = useState(true);
   const [labHistory, setLabHistory] = useState<LabHistory[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-
+  const [startLabLoading, setStartLabLoading] = useState(false);
   const { showAlert } = useAlert();
   const router = useRouter();
 
@@ -73,7 +105,9 @@ export default function LabOverview() {
 
   const fetchLabData = async () => {
     try {
-      const lessonResponse = await api.get(`/courses/lessons/${lab_id}`);
+      const lessonResponse = await api.get(
+        `/courses/lessons/${lab_id}/${userData?.id}`,
+      );
       const data: LessonDetail = lessonResponse.data.data;
       setLabData(data);
     } catch (error) {
@@ -86,7 +120,7 @@ export default function LabOverview() {
   const fetchLabHistory = async () => {
     try {
       const response = await api.get(
-        `/labs/leases?userEmail=${userData.email}`,
+        `/labs/leases/me?pageSize=10&userEmail=${userData.email}&leaseTemplateId=${labData?.leaseTemplateId ?? "0d741bd6-cb8d-406c-a981-e01a87c7b102"}`,
       );
       const result = response.data?.data?.result ?? [];
 
@@ -104,6 +138,7 @@ export default function LabOverview() {
         status: mapApiStatus(item.status),
         leaseDurationInHours: item.leaseDurationInHours ?? 1,
         templateName: item.originalLeaseTemplateName ?? "",
+        leaseId: item.leaseId ?? "",
       }));
 
       setLabHistory(mapped);
@@ -114,17 +149,36 @@ export default function LabOverview() {
     }
   };
 
-  const handleStartLab = async () => {
-    try {
-      await api.patch(`/courses/lessons/${course_id}/${lab_id}/status`);
-    } catch (error) {
-      showAlert("Failed to start the lab.", "error", {
-        vertical: "bottom",
-        horizontal: "left",
-      });
-    }
+  const activeSession = labHistory.find((item) => item.status === "running");
 
-    router.push(`/authenticated/course/${course_id}/lab/${lab_id}/start`);
+  const handleStartLab = async () => {
+    setStartLabLoading(true);
+    try {
+      let leaseSession;
+      if (!activeSession) {
+        leaseSession = (
+          await api.post("/labs/leases", {
+            leaseTemplateUuid: labData?.leaseTemplateId ?? "",
+            comments: `Started from course ${course_id}`,
+            userEmail: userData.email,
+          })
+        ).data.data;
+
+        showAlert("Lab started successfully!", "success");
+        router.push(
+          `/authenticated/course/${course_id}/lab/${lab_id}/start?leaseId=${leaseSession.leaseId}`,
+        );
+      } else {
+        router.push(
+          `/authenticated/course/${course_id}/lab/${lab_id}/start?leaseId=${activeSession.leaseId}`,
+        );
+      }
+    } catch (err) {
+      console.error("Error starting lab:", err);
+      showAlert("Failed to start lab. Please try again.", "error");
+    } finally {
+      setStartLabLoading(false);
+    }
   };
 
   const formatDuration = (seconds?: number) => {
@@ -145,14 +199,21 @@ export default function LabOverview() {
         return <Cancel sx={{ fontSize: 18, color: "#ef4444" }} />;
       case "timeout":
         return <Warning sx={{ fontSize: 18, color: "#f59e0b" }} />;
+      case "running":
+        return <PlayCircle sx={{ fontSize: 18, color: "#3b82f6" }} />;
+      case "cancel":
+        return <Cancel sx={{ fontSize: 18, color: "#6b7280" }} />;
+      case "provisioning":
+        return <HourglassEmpty sx={{ fontSize: 18, color: "#8b5cf6" }} />;
+      case "pending":
+        return <Schedule sx={{ fontSize: 18, color: "#f97316" }} />;
+      case "unknown":
       default:
-        return null;
+        return <Help sx={{ fontSize: 18, color: "#9ca3af" }} />;
     }
   };
 
-  const getStatusColor = (
-    status: LabHistoryStatus,
-  ): "success" | "error" | "warning" | "info" | "default" => {
+  const getStatusColor = (status: LabHistoryStatus): string => {
     switch (status) {
       case "complete":
         return "success";
@@ -162,6 +223,13 @@ export default function LabOverview() {
         return "warning";
       case "running":
         return "info";
+      case "provisioning":
+        return "info";
+      case "pending":
+        return "warning";
+      case "cancel":
+        return "secondary";
+      case "unknown":
       default:
         return "default";
     }
@@ -177,12 +245,19 @@ export default function LabOverview() {
         return "Timeout";
       case "running":
         return "Running";
+      case "cancel":
+        return "Cancelled";
+      case "provisioning":
+        return "Provisioning";
+      case "pending":
+        return "Pending Approval";
+      case "unknown":
       default:
         return "Unknown";
     }
   };
 
-  if (loading) {
+  if (loading || historyLoading) {
     return (
       <Box
         sx={{
@@ -406,10 +481,11 @@ export default function LabOverview() {
                 <Button
                   variant="contained"
                   onClick={handleStartLab}
+                  disabled={startLabLoading}
                   sx={{
                     background:
                       "linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)",
-                    color: "#000",
+                    color: activeSession ? "#fff" : "#000",
                     fontWeight: 700,
                     px: 4,
                     py: 1.5,
@@ -420,10 +496,21 @@ export default function LabOverview() {
                     "&:hover": {
                       boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
                     },
+                    "&.Mui-disabled": {
+                      background:
+                        "linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)",
+                      opacity: 0.7,
+                    },
                     transition: "all 0.2s",
                   }}
                 >
-                  Start Lab
+                  {startLabLoading ? (
+                    <CircularProgress size={22} sx={{ color: "#000" }} />
+                  ) : activeSession ? (
+                    "Resume"
+                  ) : (
+                    "Start Lab"
+                  )}
                 </Button>
               </Paper>
 
@@ -520,7 +607,7 @@ export default function LabOverview() {
                               gap: 1,
                             }}
                           >
-                            <CalendarToday
+                            <CalendarMonth
                               sx={{ fontSize: 14, color: "text.secondary" }}
                             />
                             <Typography variant="body2" color="text.secondary">

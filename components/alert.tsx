@@ -18,16 +18,16 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState("");
   const [severity, setSeverity] = useState<AlertColor>("info");
   const [position, setPosition] = useState<SnackbarOrigin>({
-    vertical: "top",
-    horizontal: "right",
+    vertical: "bottom",
+    horizontal: "left",
   });
 
   const showAlert = (
     msg: string,
     sev: AlertColor = "info",
     position: SnackbarOrigin = {
-      vertical: "top",
-      horizontal: "right",
+      vertical: "bottom",
+      horizontal: "left",
     },
   ) => {
     setMessage(msg);

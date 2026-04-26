@@ -90,7 +90,7 @@ export default function ConfirmEnrollPage() {
         },
       };
 
-      const res = await api.post("/media/payment/create", payload);
+      const res = await api.post(`/media/payment/${course.id}/create`, payload);
       showAlert("Redirecting to payment page...", "success");
       if (res.data.checkoutUrl) {
         window.location.href = res.data.checkoutUrl;

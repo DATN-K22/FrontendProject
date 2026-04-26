@@ -1,215 +1,241 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Container,
-  Typography,
-  Button,
-  Paper,
-  List,
-  ListItem,
-  Chip,
-  Skeleton,
-  IconButton,
-} from "@mui/material";
-import {
-  AccessTime,
-  CheckCircle,
-  Cancel,
-  Warning,
-  CalendarToday,
-} from "@mui/icons-material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useParams, useRouter } from "next/navigation";
 import api from "@/api/api";
 import { useAlert } from "@/components/alert";
 import { authUtils } from "@/utils/auth";
-
-type Quiz = {
+import QuizIcon from "@mui/icons-material/Quiz";
+import {
+  CalendarToday,
+  CheckCircle,
+  Cancel,
+  PlayCircle,
+  Help,
+  CalendarMonth,
+} from "@mui/icons-material";
+import {
+  Box,
+  Button,
+  Chip,
+  Container,
+  IconButton,
+  List,
+  ListItem,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+type QuizOverview = {
   id: string;
   title: string;
-  time_limit: number;
   description: string | null;
-  chapter_id: string;
-  finish: boolean;
 };
 
-type QuizHistory = {
-  id: string;
-  quiz_id: string;
-  user_id: string;
-  started_at: string | Date;
-  ended_at: string | Date | null;
-  finish: boolean;
-  rightQuestions: number;
-  questionOrder: Array<string | number>;
+type QuizHistoryItem = {
+  sessionId: string;
+  startedAt: string;
+  endedAt: string | null;
+  completed: boolean;
+  score: string;
+  skillEstimate: string;
+  correctAnswers?: number | null;
+  correctCount?: number | null;
+  numberCorrect?: number | null;
+  correct?: number | null;
 };
 
-type QuizOverviewData = {
-  quiz: Quiz;
-  history: QuizHistory[];
+type QuizHistoryStatus = "complete" | "fail" | "running" | "unknown";
+
+type QuizOverviewPayload = {
+  quiz: QuizOverview;
+  history: QuizHistoryItem[];
 };
 
 type QuizOverviewApiResponse = {
-  data: QuizOverviewData;
+  data: QuizOverviewPayload;
 };
 
-// Mock data for testing UI
-const MOCK_QUIZ_DATA: Quiz = {
-  id: "1",
-  title: "JavaScript Fundamentals Quiz",
-  time_limit: 90,
-  description: `This quiz covers essential JavaScript concepts including variables, data types, operators, control flow, and functions. 
-
-You will have 30 minutes to complete 25 questions. The quiz tests your understanding of:
-• Variable declarations and scoping
-• Data types and type coercion
-• Operators and expressions
-• Conditional statements
-• Loops and iterations
-• Functions and arrow functions
-
-Make sure to read each question carefully and select the most appropriate answer. There is no penalty for incorrect answers.`,
-  chapter_id: "29",
-  finish: false,
+const QUIZ_COLORS = {
+  primary: "#FFD700",
+  primarySoft: "#FFF9C4",
+  primaryDeep: "#B8860B",
+  background: "#FFFCF1",
+  surface: "rgba(255,255,255,0.96)",
+  border: "rgba(15, 23, 42, 0.08)",
+  text: "#0f172a",
+  muted: "#64748b",
+  success: "#16a34a",
+  danger: "#dc2626",
 };
 
-const USE_MOCK_DATA = true; // Set to false to use real API
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : (value ?? "");
+}
 
-const MOCK_QUIZ_HISTORY: QuizHistory[] = [
-  {
-    id: "session-1",
-    quiz_id: "1",
-    user_id: "user-1",
-    started_at: new Date("2025-12-07T22:09:00"),
-    ended_at: new Date("2025-12-07T22:28:00"),
-    finish: true,
-    rightQuestions: 17,
-    questionOrder: Array.from({ length: 20 }, (_, i) => i + 1),
-  },
-  {
-    id: "session-2",
-    quiz_id: "1",
-    user_id: "user-1",
-    started_at: new Date("2025-12-06T14:30:00"),
-    ended_at: new Date("2025-12-06T14:52:00"),
-    finish: true,
-    rightQuestions: 9,
-    questionOrder: Array.from({ length: 20 }, (_, i) => i + 1),
-  },
-  {
-    id: "session-3",
-    quiz_id: "1",
-    user_id: "user-1",
-    started_at: new Date("2025-12-05T15:15:00"),
-    ended_at: null,
-    finish: false,
-    rightQuestions: 6,
-    questionOrder: Array.from({ length: 20 }, (_, i) => i + 1),
-  },
-];
+function parseScore(score: string) {
+  const [correctRaw, totalRaw] = score.split("/");
+  const correct = Number(correctRaw);
+  const total = Number(totalRaw);
+  if (!Number.isFinite(correct) || !Number.isFinite(total) || total <= 0) {
+    return { percent: 0 };
+  }
+  return {
+    percent: Math.round((correct / total) * 100),
+  };
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "In progress";
+  return new Date(value).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getHistoryStatus(item: QuizHistoryItem): QuizHistoryStatus {
+  if (!item.completed) return "running";
+  return parseScore(item.score).percent >= 50 ? "complete" : "fail";
+}
+
+function getStatusIcon(status: QuizHistoryStatus) {
+  switch (status) {
+    case "running":
+      return <PlayCircle sx={{ fontSize: 18, color: "#3b82f6" }} />;
+    case "complete":
+      return <CheckCircle sx={{ fontSize: 18, color: "#10b981" }} />;
+    case "fail":
+      return <Cancel sx={{ fontSize: 18, color: "#ef4444" }} />;
+    default:
+      return <Help sx={{ fontSize: 18, color: "#9ca3af" }} />;
+  }
+}
+
+function getStatusColor(status: QuizHistoryStatus) {
+  switch (status) {
+    case "complete":
+      return "success" as const;
+    case "fail":
+      return "error" as const;
+    case "running":
+      return "info" as const;
+    case "unknown":
+    default:
+      return "default" as const;
+  }
+}
+
+function getStatusLabel(status: QuizHistoryStatus) {
+  switch (status) {
+    case "complete":
+      return "Complete";
+    case "fail":
+      return "Failed";
+    case "running":
+      return "Running";
+    case "unknown":
+    default:
+      return "Unknown";
+  }
+}
+
+function getCorrectAnswers(item: QuizHistoryItem) {
+  const candidates = [
+    item.correctAnswers,
+    item.correctCount,
+    item.numberCorrect,
+    item.correct,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      return value;
+    }
+  }
+
+  const [correctRaw] = (item.score ?? "").split("/");
+  const parsed = Number(correctRaw);
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return parsed;
+  }
+
+  return null;
+}
 
 export default function QuizOverview() {
-  const { course_id, quiz_id } = useParams();
-  const [quizData, setQuizData] = useState<Quiz | null>(null);
-  const [loading, setLoading] = useState(true);
-  const user = authUtils.getAuth().userData;
-  const { showAlert } = useAlert();
+  const params = useParams();
   const router = useRouter();
-  const [quizHistory, setQuizHistory] = useState<QuizHistory[]>([]);
+  const { showAlert } = useAlert();
 
-  useEffect(() => {
-    fetchQuizData();
-  }, []);
+  const courseId = getParam(params.course_id as string | string[] | undefined);
+  const quizId = getParam(params.quiz_id as string | string[] | undefined);
+  const user = authUtils.getAuth().userData;
 
-  const fetchQuizData = async () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [quizData, setQuizData] = useState<QuizOverview | null>(null);
+  const [quizHistory, setQuizHistory] = useState<QuizHistoryItem[]>([]);
+
+  const apiRoot = useMemo(() => {
+    if (!user?.id || !quizId) return null;
+    return `/courses/quizzes/${user.id}/${quizId}?limit=5&offset=0`;
+  }, [quizId, user?.id]);
+
+  const loadQuizData = useCallback(async () => {
+    if (!apiRoot) {
+      setError("Missing quiz or user information.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
     try {
-      // if (USE_MOCK_DATA) {
-      //   setQuizData(MOCK_QUIZ_DATA);
-      //   setQuizHistory(MOCK_QUIZ_HISTORY);
-      //   return;
-      // }
-
-      const res = await api.get<QuizOverviewApiResponse>(
-        `/courses/quizzes/${user?.id}/${quiz_id}`,
-      );
-
-      setQuizData(res.data.data.quiz);
-      setQuizHistory(res.data.data.history ?? []);
-    } catch (error) {
-      setQuizData(MOCK_QUIZ_DATA);
-      setQuizHistory(MOCK_QUIZ_HISTORY);
-      console.error("Error fetching quiz data:", error);
-      showAlert("Failed to load quiz details.", "error", {
-        vertical: "bottom",
-        horizontal: "left",
-      });
+      const response = await api.get(apiRoot);
+      const payload = (response.data?.data ??
+        response.data) as QuizOverviewPayload;
+      setQuizData(payload.quiz);
+      setQuizHistory(payload.history ?? []);
+    } catch (requestError) {
+      const message = "Unable to load quiz information.";
+      setError(message);
+      showAlert(message, "error", { vertical: "bottom", horizontal: "left" });
+      console.error("Error fetching quiz data:", requestError);
     } finally {
       setLoading(false);
     }
+  }, [apiRoot, showAlert]);
+
+  useEffect(() => {
+    void loadQuizData();
+  }, [loadQuizData]);
+
+  const activeAttempt = quizHistory.find((item) => !item.completed);
+  const startLabel = activeAttempt ? "Resume quiz" : "Start quiz";
+
+  const handleStartQuiz = () => {
+    router.push(`/authenticated/course/${courseId}/quiz/${quizId}/start`);
   };
 
-  const handleStartQuiz = async () => {
-    router.push(`/authenticated/course/${course_id}/quiz/${quiz_id}/start`);
-  };
-
-  const formatDuration = (minutes?: number) => {
-    if (!minutes) return "No limit";
-    const hours = Math.floor(minutes / 60);
-    const remainMinutes = minutes % 60;
-    if (hours > 0) {
-      return `${hours} hour${hours > 1 ? "s" : ""}${remainMinutes > 0 ? ` ${remainMinutes} min` : ""}`;
+  const handleBack = () => {
+    if (courseId) {
+      router.push(`/authenticated/course/${courseId}`);
+      return;
     }
-    return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+    router.back();
   };
 
-  const formatAttemptTime = (date: Date | string) => {
-    return new Date(date).toLocaleString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  const getScorePercent = (attempt: QuizHistory) => {
-    const totalQuestions = attempt.questionOrder.length;
-    if (totalQuestions === 0) return 0;
-    return Math.round((attempt.rightQuestions / totalQuestions) * 100);
-  };
-
-  const getAttemptStatus = (attempt: QuizHistory) => {
-    if (!attempt.finish) return "in-progress";
-    return getScorePercent(attempt) >= 50 ? "passed" : "failed";
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "in-progress":
-        return <Warning sx={{ fontSize: 18, color: "#f59e0b" }} />;
-      case "passed":
-        return <CheckCircle sx={{ fontSize: 18, color: "#10b981" }} />;
-      case "failed":
-        return <Cancel sx={{ fontSize: 18, color: "#ef4444" }} />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "in-progress":
-        return "warning";
-      case "passed":
-        return "success";
-      case "failed":
-        return "error";
-      default:
-        return "default";
-    }
+  const accentChipSx = {
+    backgroundColor: QUIZ_COLORS.primarySoft,
+    color: QUIZ_COLORS.text,
+    border: `1px solid ${QUIZ_COLORS.border}`,
+    fontWeight: 700,
   };
 
   if (loading) {
@@ -223,216 +249,99 @@ export default function QuizOverview() {
         }}
       >
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          {/* Header Skeleton */}
-          <Box sx={{ mb: 4 }}>
-            <Skeleton
-              variant="text"
-              width="70%"
-              height={80}
-              sx={{ borderRadius: 2 }}
-            />
-          </Box>
-
-          {/* Main Content Skeleton */}
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "5fr 2fr" },
-              gap: 3,
-            }}
-          >
-            {/* Left Column Skeleton */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Duration and Start Lab Skeleton */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 3,
-                  background: "white",
-                  borderRadius: "20px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                }}
-              >
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: { xs: "column", md: "row" },
-                    alignItems: { xs: "stretch", md: "center" },
-                    justifyContent: "space-between",
-                    gap: 2,
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                    <Skeleton variant="circular" width={56} height={56} />
-                    <Skeleton variant="text" width={200} height={30} />
-                  </Box>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      gap: 2,
-                      alignItems: "center",
-                      flexDirection: { xs: "column", sm: "row" },
-                    }}
-                  >
-                    <Skeleton
-                      variant="rectangular"
-                      width={180}
-                      height={40}
-                      sx={{ borderRadius: 2 }}
-                    />
-                    <Skeleton
-                      variant="rectangular"
-                      width={120}
-                      height={48}
-                      sx={{ borderRadius: 2 }}
-                    />
-                  </Box>
-                </Box>
-              </Paper>
-
-              {/* Lab Overview Skeleton */}
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: "20px",
-                  p: 4,
-                  border: "1px solid",
-                  borderColor: "grey.200",
-                }}
-              >
+          <Stack spacing={3}>
+            <Skeleton variant="text" width="65%" height={72} />
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", lg: "5fr 2fr" },
+                gap: 3,
+              }}
+            >
+              <Stack spacing={3}>
                 <Skeleton
-                  variant="text"
-                  width={150}
-                  height={40}
-                  sx={{ mb: 3 }}
+                  variant="rounded"
+                  height={170}
+                  sx={{ borderRadius: 5 }}
                 />
-                <Skeleton variant="text" width="100%" height={24} />
-                <Skeleton variant="text" width="100%" height={24} />
-                <Skeleton variant="text" width="100%" height={24} />
-                <Skeleton variant="text" width="95%" height={24} />
-                <Skeleton variant="text" width="90%" height={24} />
-                <Skeleton variant="text" width="85%" height={24} />
-              </Paper>
-            </Box>
-
-            {/* Right Column - Lab History Skeleton */}
-            <Box>
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: "20px",
-                  p: 3,
-                  border: "1px solid",
-                  borderColor: "grey.200",
-                }}
-              >
                 <Skeleton
-                  variant="text"
-                  width={120}
-                  height={35}
-                  sx={{ mb: 3 }}
+                  variant="rounded"
+                  height={260}
+                  sx={{ borderRadius: 5 }}
                 />
-
-                {/* Guided Mode Skeleton */}
-                <Box
-                  sx={{
-                    mb: 4,
-                    p: 2,
-                    borderRadius: "20px",
-                    background:
-                      "linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 100%)",
-                  }}
-                >
-                  <Skeleton variant="text" width={130} height={30} />
-                  <Skeleton
-                    variant="text"
-                    width="90%"
-                    height={20}
-                    sx={{ mb: 1, ml: 2 }}
-                  />
-                  <Box sx={{ pl: 2 }}>
-                    {[1, 2, 3].map((item) => (
-                      <Box
-                        key={item}
-                        sx={{
-                          py: 1,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Skeleton variant="text" width={180} height={24} />
-                        <Skeleton
-                          variant="rectangular"
-                          width={95}
-                          height={24}
-                          sx={{ borderRadius: 3 }}
-                        />
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-
-                {/* Challenge Mode Skeleton */}
-                <Box
-                  sx={{
-                    p: 2,
-                    borderRadius: "20px",
-                    background:
-                      "linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 100%)",
-                  }}
-                >
-                  <Skeleton variant="text" width={150} height={30} />
-                  <Skeleton
-                    variant="text"
-                    width="95%"
-                    height={20}
-                    sx={{ mb: 2, ml: 2 }}
-                  />
-                  <Box sx={{ pl: 2 }}>
-                    {[1, 2, 3].map((item) => (
-                      <Box
-                        key={item}
-                        sx={{
-                          py: 1,
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Skeleton variant="text" width={180} height={24} />
-                        <Skeleton
-                          variant="rectangular"
-                          width={95}
-                          height={24}
-                          sx={{ borderRadius: 3 }}
-                        />
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              </Paper>
+              </Stack>
+              <Skeleton
+                variant="rounded"
+                height={420}
+                sx={{ borderRadius: 5 }}
+              />
             </Box>
-          </Box>
+          </Stack>
         </Container>
       </Box>
     );
   }
 
-  if (!quizData) {
+  if (error && !quizData) {
     return (
       <Box
         sx={{
           minHeight: "100vh",
-          background: "linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          background: "linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 100%)",
+          pb: 8,
+          px: 4,
         }}
       >
-        <Typography variant="h6" color="text.secondary">
-          Quiz not found
-        </Typography>
+        <Container maxWidth="md" sx={{ py: 4 }}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: 4,
+              borderRadius: 5,
+              background: QUIZ_COLORS.surface,
+              border: `1px solid ${QUIZ_COLORS.border}`,
+              boxShadow: "0 18px 50px rgba(15, 23, 42, 0.08)",
+            }}
+          >
+            <Stack spacing={2} alignItems="flex-start">
+              <Chip label="Quiz Overview" sx={accentChipSx} />
+              <Typography
+                variant="h4"
+                sx={{ fontWeight: 800, color: QUIZ_COLORS.text }}
+              >
+                Unable to load quiz
+              </Typography>
+              <Typography sx={{ color: QUIZ_COLORS.muted }}>{error}</Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button
+                  variant="contained"
+                  onClick={() => void loadQuizData()}
+                  sx={{
+                    backgroundColor: QUIZ_COLORS.primary,
+                    color: QUIZ_COLORS.text,
+                    fontWeight: 800,
+                    textTransform: "none",
+                    "&:hover": { backgroundColor: "#f0c800" },
+                  }}
+                >
+                  Retry
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={handleBack}
+                  sx={{
+                    borderColor: QUIZ_COLORS.primary,
+                    color: QUIZ_COLORS.text,
+                    fontWeight: 700,
+                    textTransform: "none",
+                  }}
+                >
+                  Back
+                </Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        </Container>
       </Box>
     );
   }
@@ -447,13 +356,17 @@ export default function QuizOverview() {
       }}
     >
       <Box sx={{ pt: 4, mb: 2 }}>
-        <IconButton onClick={() => router.back()}>
+        <IconButton
+          onClick={() => {
+            router.push(`/authenticated/course/${courseId}/${quizId}`);
+          }}
+        >
           <ArrowBackIcon />
         </IconButton>
       </Box>
+
       <Container maxWidth="xl">
-        <Box>
-          {/* Header */}
+        <Stack spacing={3}>
           <Box sx={{ mb: 4 }}>
             <Typography
               variant="h3"
@@ -465,11 +378,9 @@ export default function QuizOverview() {
                 fontSize: { xs: "2rem", md: "2.5rem", lg: "3rem" },
               }}
             >
-              {quizData.title}
+              {quizData?.title ?? "Quiz"}
             </Typography>
           </Box>
-
-          {/* Main Content */}
           <Box
             sx={{
               display: "grid",
@@ -477,152 +388,145 @@ export default function QuizOverview() {
               gap: 3,
             }}
           >
-            {/* Left Column - Lab Info */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <Stack spacing={3}>
               <Paper
                 elevation={0}
                 sx={{
                   p: 3,
-                  display: "flex",
-                  flexDirection: { xs: "column", md: "row" },
-                  alignItems: { xs: "stretch", md: "center" },
-                  justifyContent: "space-between",
-                  gap: 2,
-
-                  background: "white",
-                  borderRadius: "20px",
+                  background: QUIZ_COLORS.surface,
+                  borderRadius: 5,
                   boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                  border: `1px solid ${QUIZ_COLORS.border}`,
                 }}
               >
                 <Box
                   sx={{
                     display: "flex",
-                    alignItems: "center",
+                    flexDirection: { xs: "column", md: "row" },
+                    alignItems: { xs: "stretch", md: "center" },
+                    justifyContent: "space-between",
                     gap: 2,
                   }}
                 >
-                  <Box
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <Box
+                      sx={{
+                        borderRadius: "50%",
+                        p: 1.5,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background:
+                          "linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)",
+                      }}
+                    >
+                      <QuizIcon sx={{ color: "#ffffff", fontSize: 24 }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                        Revising chapter
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Button
+                    variant="contained"
+                    onClick={handleStartQuiz}
                     sx={{
-                      borderRadius: "50%",
-                      p: 1.5,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
                       background:
                         "linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)",
+                      color: QUIZ_COLORS.text,
+                      fontWeight: 700,
+                      px: 4,
+                      py: 1.5,
+                      borderRadius: 2,
+                      textTransform: "none",
+                      boxShadow: "none",
+                      fontSize: "1rem",
+                      "&:hover": {
+                        boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
+                      },
+                      transition: "all 0.2s",
                     }}
                   >
-                    <AccessTime sx={{ color: "#ffffff", fontSize: 24 }} />
-                  </Box>
-                  <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                    Duration:{" "}
-                    <Box component="span" sx={{ fontWeight: 500 }}>
-                      {formatDuration(quizData.time_limit)}
-                    </Box>
-                  </Typography>
+                    {startLabel}
+                  </Button>
                 </Box>
-                <Button
-                  variant="contained"
-                  onClick={handleStartQuiz}
-                  sx={{
-                    background:
-                      "linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)",
-                    color: "#fff",
-                    fontWeight: 700,
-                    px: 4,
-                    py: 1.5,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    boxShadow: "none",
-                    fontSize: "1rem",
-                    "&:hover": {
-                      boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
-                    },
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {quizData.finish ? "Continue Quiz" : "Start Quiz"}
-                </Button>
               </Paper>
 
-              {/* Quiz Overview */}
               <Paper
                 elevation={0}
                 sx={{
-                  borderRadius: "20px",
+                  borderRadius: 5,
                   p: 4,
-                  border: "1px solid",
-                  borderColor: "grey.200",
+                  border: `1px solid ${QUIZ_COLORS.border}`,
+                  background: QUIZ_COLORS.surface,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                 }}
               >
-                <Typography variant="h5" sx={{ fontWeight: 700, mb: 3 }}>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 800, mb: 3, color: QUIZ_COLORS.text }}
+                >
                   Quiz Overview
                 </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{ color: "text.secondary", lineHeight: 1.8, mb: 4 }}
-                >
-                  {quizData.description ??
-                    "No description available for this quiz."}
+                <Typography sx={{ color: QUIZ_COLORS.muted, lineHeight: 1.8 }}>
+                  {quizData?.description ??
+                    "No description is available for this quiz."}
                 </Typography>
               </Paper>
-            </Box>
+            </Stack>
 
-            {/* Right Column - Quiz History */}
-            <Box>
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: "20px",
-                  p: 3,
-                  border: "1px solid",
-                  borderColor: "grey.200",
-                  position: { lg: "sticky" },
-                  top: 24,
-                }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
-                  Quiz History
-                </Typography>
+            <Paper
+              elevation={0}
+              sx={{
+                borderRadius: "20px",
+                p: 3,
+                border: "1px solid",
+                borderColor: "grey.200",
+                position: { lg: "sticky" },
+                top: 24,
+              }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 3 }}>
+                Quiz History
+              </Typography>
 
-                {/* Quiz Attempts List */}
+              {quizHistory.length > 0 ? (
                 <Box
                   sx={{
-                    mb: 4,
                     p: 2,
-                    borderRadius: "20px",
+                    borderRadius: 5,
                     background:
                       "linear-gradient(135deg, #e3f2fd 0%, #f5f5f5 100%)",
                   }}
                 >
-                  {quizHistory.length > 0 ? (
-                    <List sx={{ p: 0 }}>
-                      {quizHistory.map((item, index) => (
+                  <List sx={{ p: 0 }}>
+                    {quizHistory.map((item) => {
+                      const status = getHistoryStatus(item);
+                      const correctAnswers = getCorrectAnswers(item);
+                      const scorePercent = parseScore(item.score).percent;
+                      return (
                         <ListItem
-                          key={index}
+                          key={item.sessionId}
                           sx={{
                             px: 0,
-                            py: 2,
+                            py: 1,
                             display: "flex",
-                            flexDirection: "column",
+                            justifyContent: "space-between",
                             alignItems: "flex-start",
-                            gap: 1,
-                            borderBottom:
-                              index !== quizHistory.length - 1
-                                ? "1px solid"
-                                : "none",
-                            borderColor: "divider",
+                            gap: 2,
                           }}
                         >
                           <Box
                             sx={{
                               display: "flex",
                               flexDirection: "column",
-                              alignItems: "flex-start",
                               gap: 0.5,
-                              width: "100%",
+                              flex: 1,
                             }}
                           >
+                            {/* Started */}
                             <Box
                               sx={{
                                 display: "flex",
@@ -630,85 +534,98 @@ export default function QuizOverview() {
                                 gap: 1,
                               }}
                             >
-                              <CalendarToday
+                              <CalendarMonth
                                 sx={{ fontSize: 14, color: "text.secondary" }}
                               />
                               <Typography
                                 variant="body2"
-                                color="text.secondary"
+                                sx={{ color: "text.secondary" }}
                               >
-                                {formatAttemptTime(item.started_at)}
+                                Started: {formatDateTime(item.startedAt)}
                               </Typography>
                             </Box>
-                            {item.ended_at && (
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{ pl: 3 }}
+
+                            {/* Ended */}
+                            {item.endedAt && (
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 1,
+                                }}
                               >
-                                Completed: {formatAttemptTime(item.ended_at)}
-                              </Typography>
+                                <CalendarMonth
+                                  sx={{ fontSize: 14, color: "text.secondary" }}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    color: "text.secondary",
+                                  }}
+                                >
+                                  Ended: {formatDateTime(item.endedAt)}
+                                </Typography>
+                              </Box>
                             )}
                           </Box>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              width: "100%",
-                            }}
+
+                          <Stack
+                            spacing={0.25}
+                            sx={{ alignItems: "flex-end", minWidth: 130 }}
                           >
                             <Chip
-                              icon={
-                                getStatusIcon(getAttemptStatus(item)) ??
-                                undefined
-                              }
-                              label={getAttemptStatus(item).replace("-", " ")}
+                              icon={getStatusIcon(status)}
+                              label={getStatusLabel(status)}
                               size="small"
-                              color={
-                                getStatusColor(getAttemptStatus(item)) as any
-                              }
+                              color={getStatusColor(status)}
                               sx={{
                                 fontWeight: 500,
+                                minWidth: 95,
+                                justifyContent: "center",
                                 "& .MuiChip-label": {
-                                  px: 1,
+                                  width: "100%",
+                                  textAlign: "center",
                                 },
                               }}
                             />
-                            {item.finish && (
+                            <Typography
+                              variant="caption"
+                              sx={{ color: "primary.main" }}
+                            >
+                              Score: {item.score} ({scorePercent}%)
+                            </Typography>
+                            {correctAnswers !== null && (
                               <Typography
-                                variant="body2"
-                                sx={{
-                                  fontWeight: 600,
-                                  color:
-                                    getAttemptStatus(item) === "passed"
-                                      ? "#10b981"
-                                      : "#ef4444",
-                                }}
+                                variant="caption"
+                                sx={{ color: "success.main" }}
                               >
-                                Score: {getScorePercent(item)}% (
-                                {item.rightQuestions}/
-                                {item.questionOrder.length})
+                                Correct: {correctAnswers}
                               </Typography>
                             )}
-                          </Box>
+                            {item.skillEstimate && (
+                              <Typography
+                                variant="caption"
+                                sx={{ color: "text.secondary" }}
+                              >
+                                Skill: {item.skillEstimate}
+                              </Typography>
+                            )}
+                          </Stack>
                         </ListItem>
-                      ))}
-                    </List>
-                  ) : (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ textAlign: "center", py: 4 }}
-                    >
-                      No quiz attempts yet
-                    </Typography>
-                  )}
+                      );
+                    })}
+                  </List>
                 </Box>
-              </Paper>
-            </Box>
+              ) : (
+                <Box sx={{ py: 4, textAlign: "center" }}>
+                  <Typography variant="body2" sx={{ color: QUIZ_COLORS.muted }}>
+                    No quiz history yet.
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
           </Box>
-        </Box>
+        </Stack>
       </Container>
     </Box>
   );
