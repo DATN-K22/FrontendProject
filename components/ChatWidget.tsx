@@ -592,7 +592,6 @@ export default function ChatWidget({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<ChatStatus>("ready");
   const [composerText, setComposerText] = useState("");
-  const [lastSubmittedPrompt, setLastSubmittedPrompt] = useState<string>("");
   const [abortController, setAbortController] = useState<AbortController | null>(null);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -601,6 +600,7 @@ export default function ChatWidget({
   const [localSelectedTimezone, setLocalSelectedTimezone] = useState("Etc/UTC");
 
   const lastRestoredContextRef = useRef<string | null>(null);
+  const lastSyncedSessionStateRef = useRef<string | null>(null);
 
   const isOpen = chatWidget?.store.isOpen ?? localOpen;
   const contextId = chatWidget?.store.contextId ?? localContextId;
@@ -646,6 +646,7 @@ export default function ChatWidget({
     return timezoneOptions[0]?.value ?? "Etc/UTC";
   }, [timezoneOptions]);
   const selectedTimezone = chatWidget?.store.selectedTimezone ?? localSelectedTimezone;
+  const lastTimezoneSyncCandidateRef = useRef(selectedTimezone);
   const setSelectedTimezone = useCallback(
     (timezone: string) => {
       if (chatWidget) {
@@ -795,7 +796,6 @@ export default function ChatWidget({
     saveContext(null, null);
     setMessages([]);
     setComposerText("");
-    setLastSubmittedPrompt("");
     setStatus("ready");
     setShowHistoryPanel(false);
     lastRestoredContextRef.current = null;
@@ -866,6 +866,52 @@ export default function ChatWidget({
     );
   }, [contextId, localTaskId, messages, upsertConversation]);
 
+  useEffect(() => {
+    const timezoneChanged = lastTimezoneSyncCandidateRef.current !== selectedTimezone;
+    if (!contextId) {
+      // Keep this ref in sync so switching conversations alone does not trigger a state update.
+      lastTimezoneSyncCandidateRef.current = selectedTimezone;
+      return;
+    }
+    if (!timezoneChanged) return;
+
+    lastTimezoneSyncCandidateRef.current = selectedTimezone;
+
+    const syncKey = `${contextId}:${selectedTimezone}:${courseIdFromContext ?? ""}`;
+    if (lastSyncedSessionStateRef.current === syncKey) return;
+
+    let canceled = false;
+
+    const payload: {
+      session_id: string;
+      timezone: string;
+      course_id?: string;
+    } = {
+      session_id: contextId,
+      timezone: selectedTimezone,
+      ...(courseIdFromContext ? { course_id: courseIdFromContext } : {}),
+    };
+
+    void api
+      .post(sessionStateEndpoint, payload, {
+        headers: {
+          "x-tenant-id": tenantIdToUse,
+          ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
+        },
+      })
+      .then(() => {
+        if (canceled) return;
+        lastSyncedSessionStateRef.current = syncKey;
+      })
+      .catch(() => {
+        // Keep chat usable if session-state sync fails.
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [chatWidget?.userId, contextId, courseIdFromContext, selectedTimezone, sessionStateEndpoint, tenantIdToUse]);
+
   // Core fetch — shared by sendMessage and sendApproval
   const postToAgent = useCallback(
     async (text: string, taskId?: string | null): Promise<ParsedResponse> => {
@@ -928,6 +974,10 @@ export default function ChatWidget({
               },
               signal: controller.signal,
             });
+
+            // Prevent the auto-sync effect from sending a duplicate state update
+            // right after a brand-new session is created by the first message.
+            lastSyncedSessionStateRef.current = `${parsed.contextId}:${stateDelta.timezone}:${courseIdFromContext ?? ""}`;
           } catch {
             // Keep chat response successful even if session-state sync fails.
           }
@@ -965,7 +1015,6 @@ export default function ChatWidget({
 
       setMessages((prev) => [...prev, { id: randomId(), role: "user", text }]);
       setStatus("submitted");
-      setLastSubmittedPrompt(text);
       setComposerText("");
       setShowHistoryPanel(false);
 
@@ -1025,11 +1074,6 @@ export default function ChatWidget({
     if (!abortController) return;
     abortController.abort();
   }, [abortController]);
-
-  const rewritePrompt = useCallback((text: string) => {
-    setComposerText(text);
-    setStatus((prev) => (prev === "error" ? "ready" : prev));
-  }, []);
 
   return (
     <>
@@ -1154,8 +1198,22 @@ export default function ChatWidget({
                   </ConversationEmptyState>
                 ) : (
                   messages.map((msg) => (
-                    <Message from={msg.role} key={msg.id}>
-                      <MessageContent>
+                    <Message
+                      className={
+                        msg.role === "assistant"
+                          ? "mb-5 mr-auto pr-8"
+                          : "mb-6 ml-auto pl-12"
+                      }
+                      from={msg.role}
+                      key={msg.id}
+                    >
+                      <MessageContent
+                        className={
+                          msg.role === "assistant"
+                            ? "rounded-2xl border border-yellow-300/80 bg-yellow-100 px-4 py-3 text-black shadow-sm"
+                            : "rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-md"
+                        }
+                      >
                         {msg.role === "assistant" ? (
                           <>
                             <MessageResponse>{msg.text}</MessageResponse>
@@ -1169,18 +1227,7 @@ export default function ChatWidget({
                             )}
                           </>
                         ) : (
-                          <div className="space-y-2">
-                            <p className="whitespace-pre-wrap">{msg.text}</p>
-                            <Button
-                              className="h-6 px-2 text-xs"
-                              onClick={() => rewritePrompt(msg.text)}
-                              size="sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              Rewrite
-                            </Button>
-                          </div>
+                          <p className="whitespace-pre-wrap">{msg.text}</p>
                         )}
                       </MessageContent>
                     </Message>
@@ -1219,16 +1266,6 @@ export default function ChatWidget({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    <Button
-                      className="h-7 px-3 text-xs"
-                      disabled={!lastSubmittedPrompt || status === "submitted"}
-                      onClick={() => rewritePrompt(lastSubmittedPrompt)}
-                      size="sm"
-                      type="button"
-                      variant="ghost"
-                    >
-                      Rewrite last
-                    </Button>
                   </PromptInputTools>
                   <PromptInputSubmit onStop={cancelRequest} status={status} />
                 </PromptInputFooter>
