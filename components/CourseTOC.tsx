@@ -111,7 +111,6 @@ export default function CourseTOC() {
   useEffect(() => {
     fetchChapterLesson();
   }, [tocVersion]);
-
   const handleAccordionChange =
     (panel: string) => (_: React.SyntheticEvent, isExpanded: boolean) => {
       setExpanded(isExpanded ? panel : "");
@@ -350,11 +349,16 @@ export default function CourseTOC() {
                                     <Box
                                       sx={{
                                         display: "flex",
-                                        justifyContent: "space-between",
                                         alignItems: "center",
                                         gap: 1,
+                                        minWidth: 0,
                                       }}
                                     >
+                                      <Box sx={{ flexShrink: 0 }}>
+                                        {getLessonIcon(lessonItem.type)}
+                                      </Box>
+
+                                      {/* Title */}
                                       <Typography
                                         variant="body2"
                                         sx={{
@@ -365,6 +369,7 @@ export default function CourseTOC() {
                                               ? "#bbb"
                                               : "#555",
                                           fontWeight: isCurrent ? 600 : 400,
+
                                           flex: 1,
                                           minWidth: 0,
 
@@ -373,9 +378,10 @@ export default function CourseTOC() {
                                           textOverflow: "ellipsis",
                                         }}
                                       >
-                                        {getLessonIcon(lessonItem.type)}{" "}
                                         {lessonItem.title}
                                       </Typography>
+
+                                      {/* Icon phải */}
                                       <Box
                                         sx={{
                                           display: "flex",
@@ -384,22 +390,6 @@ export default function CourseTOC() {
                                           flexShrink: 0,
                                         }}
                                       >
-                                        {lessonItem.duration && (
-                                          <Typography
-                                            variant="caption"
-                                            sx={{
-                                              fontFamily: "'Inter', sans-serif",
-                                              color: isCurrent
-                                                ? "#ffd700"
-                                                : "#999",
-                                              fontWeight: isCurrent ? 600 : 400,
-                                            }}
-                                          >
-                                            {formatDuration(
-                                              lessonItem.duration,
-                                            )}
-                                          </Typography>
-                                        )}
                                         {lessonItem.isFinished ? (
                                           <CheckCircle
                                             sx={{
@@ -409,10 +399,7 @@ export default function CourseTOC() {
                                           />
                                         ) : isLocked ? (
                                           <Lock
-                                            sx={{
-                                              fontSize: 16,
-                                              color: "#ccc",
-                                            }}
+                                            sx={{ fontSize: 16, color: "#ccc" }}
                                           />
                                         ) : null}
                                       </Box>

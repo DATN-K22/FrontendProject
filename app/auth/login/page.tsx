@@ -81,7 +81,7 @@ export default function LoginPage() {
         vertical: 'bottom',
         horizontal: 'left'
       })
-      if (user.role === 'admin') {
+      if (user.role === 'Admin') {
         router.replace('/authenticated/admin')
       } else {
         router.replace('/authenticated/homepage')
@@ -364,7 +364,7 @@ export default function LoginPage() {
                     }
                   />
                   <Link
-                    href='#'
+                    href='/auth/forgot-password'
                     underline='hover'
                     sx={{
                       color: 'text.primary',

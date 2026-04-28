@@ -65,9 +65,15 @@ if (typeof window !== 'undefined') {
       const refreshToken = fromLocal || fromSession
 
       if (!refreshToken) {
+<<<<<<< HEAD
         isRefreshing = false
         window.location.href = '/auth/login'
         return Promise.reject(error)
+=======
+        isRefreshing = false;
+        // window.location.href = "/auth/login";
+        return Promise.reject(error);
+>>>>>>> facce7eab7ec323b70e82e8a82bc31fbdc12bb9c
       }
 
       return new Promise(async (resolve, reject) => {
@@ -95,7 +101,7 @@ if (typeof window !== 'undefined') {
           sessionStorage.removeItem('accessToken')
           sessionStorage.removeItem('refreshToken')
 
-          window.location.href = '/auth/login'
+          // window.location.href = "/auth/login";
 
           reject(refreshError)
         } finally {
