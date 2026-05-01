@@ -29,6 +29,7 @@ import AddIcon from "@mui/icons-material/Add";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import api from "@/api/api";
+import { useAlert } from "@/components/alert";
 import { getAllTimezones, getTimezone } from "countries-and-timezones";
 import { RRule, type Options as RRuleOptions } from "rrule";
 
@@ -77,6 +78,13 @@ type CalendarEvent = {
   rawId: string;         // id thực của event node này
   masterEventId: string; // id của master event (dùng cho split/exception)
   occurrenceIso: string; // ISO của occurrence này
+};
+
+type RecurrenceFormState = {
+  enabled: boolean;
+  frequency: "DAILY" | "WEEKLY" | "MONTHLY";
+  interval: number;
+  until: string;
 };
 
 const hours = Array.from({ length: 24 }, (_, index) => `${index}:00`);
@@ -424,6 +432,27 @@ const mapFrequencyFromRRule = (frequency: number | undefined): "DAILY" | "WEEKLY
   return null;
 };
 
+const deriveRecurrenceFormState = (event: CalendarEvent | null): RecurrenceFormState => {
+  if (!event?.recurrenceRule) {
+    return {
+      enabled: false,
+      frequency: "WEEKLY",
+      interval: 1,
+      until: "",
+    };
+  }
+
+  const parsed = parseRRuleOptions(event.recurrenceRule, new Date(event.startEpoch));
+  const mappedFrequency = mapFrequencyFromRRule(parsed?.freq);
+
+  return {
+    enabled: true,
+    frequency: mappedFrequency ?? "WEEKLY",
+    interval: Math.max(1, parsed?.interval || 1),
+    until: parsed?.until ? toDateInputValue(parsed.until) : "",
+  };
+};
+
 const expandBackendEvents = (
   events: BackendEvent[],
   rangeStart: Date,
@@ -569,6 +598,7 @@ const recurrenceLabelMap = {
 } as const;
 
 export default function SchedulePage() {
+  const { showAlert } = useAlert();
   const detectedOffset = -new Date().getTimezoneOffset();
   const defaultTimezone = gmtOptions.find((option) => option.offsetMinutes === detectedOffset) ?? gmtOptions[0];
 
@@ -725,6 +755,29 @@ export default function SchedulePage() {
     return `${baseLabel} until ${shortDateLabel(untilDate)}`;
   }, [recurrenceEnabled, recurrenceFrequency, recurrenceInterval, recurrenceUntil]);
 
+  const initialRecurrenceFormState = useMemo(() => deriveRecurrenceFormState(selectedEvent), [selectedEvent]);
+
+  const isRepeatFieldModified = useMemo(() => {
+    if (!selectedEvent) return false;
+
+    return (
+      recurrenceEnabled !== initialRecurrenceFormState.enabled ||
+      recurrenceFrequency !== initialRecurrenceFormState.frequency ||
+      recurrenceInterval !== initialRecurrenceFormState.interval ||
+      recurrenceUntil !== initialRecurrenceFormState.until
+    );
+  }, [
+    initialRecurrenceFormState.enabled,
+    initialRecurrenceFormState.frequency,
+    initialRecurrenceFormState.interval,
+    initialRecurrenceFormState.until,
+    recurrenceEnabled,
+    recurrenceFrequency,
+    recurrenceInterval,
+    recurrenceUntil,
+    selectedEvent,
+  ]);
+
 
   // Tính max dựa trên formStartDateTime
   const formEndMax = useMemo(() => {
@@ -829,16 +882,27 @@ export default function SchedulePage() {
       }
 
       await refetchEvents();
+      showAlert(selectedEvent ? "Event updated successfully" : "Event created successfully", "success", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
       setSelectedEventId(null);
       setRecurringActionDialog(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving event:", error);
+      const message =
+        error?.response?.data?.message ||
+        (selectedEvent ? "Failed to update event" : "Failed to create event");
+      showAlert(message, "error", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
     } finally {
       setRecurringActionDialog(null);
     }
   };
 
-  const executeDelete = async (scope: "this" | "all") => {
+  const executeDelete = async (scope: "this" | "thisAndFollowing" | "all") => {
     const masterEventId = selectedEvent?.masterEventId ?? "";
     const rawId = selectedEvent?.rawId ?? "";
     const occurrenceIso = selectedEvent?.occurrenceIso ?? "";
@@ -849,15 +913,62 @@ export default function SchedulePage() {
           event_id: Number(masterEventId),
           exception_date: occurrenceIso,
         });
+      } else if (scope === "thisAndFollowing") {
+        const masterEvent = backendEvents.find((event) => String(event.id) === masterEventId);
+        const selectedOccurrenceStart = parseMaybeDate(occurrenceIso);
+        if (!masterEvent || !masterEvent.rrule_string || !selectedOccurrenceStart) {
+          throw new Error("Missing recurring event data for delete this and following");
+        }
+
+        const masterStart = parseMaybeDate(masterEvent.time_start);
+        if (!masterStart) {
+          throw new Error("Invalid master event start time");
+        }
+
+        const parsedRRule = parseRRuleOptions(masterEvent.rrule_string, masterStart);
+        if (!parsedRRule) {
+          throw new Error("Invalid recurrence rule");
+        }
+
+        const untilOneDayBefore = new Date(selectedOccurrenceStart.getTime() - 24 * 60 * 60 * 1000);
+        const nextRrule = RRule.optionsToString({
+          ...parsedRRule,
+          until: untilOneDayBefore,
+        });
+
+        await api.put(`/users/schedule/events/${masterEventId}`, {
+          title: masterEvent.title,
+          description: masterEvent.description || undefined,
+          time_start:
+            masterEvent.time_start instanceof Date
+              ? masterEvent.time_start.toISOString()
+              : masterEvent.time_start,
+          time_end:
+            masterEvent.time_end instanceof Date
+              ? masterEvent.time_end.toISOString()
+              : masterEvent.time_end,
+          timezone: masterEvent.timezone,
+          status: masterEvent.status,
+          rrule_string: nextRrule,
+        });
       } else {
         await api.delete(`/users/schedule/events/${rawId}`);
       }
 
       await refetchEvents();
+      showAlert("Event deleted successfully", "success", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
       setSelectedEventId(null);
       setRecurringActionDialog(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting event:", error);
+      const message = error?.response?.data?.message || "Failed to delete event";
+      showAlert(message, "error", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
     } finally {
       setRecurringActionDialog(null);
     }
@@ -898,25 +1009,11 @@ export default function SchedulePage() {
     setFormEndDateTime(`${selectedEvent.date}T${selectedEvent.end}`);
     setFormDescription(selectedEvent.description ?? "");
 
-    if (selectedEvent.recurrenceRule) {
-      const parsed = parseRRuleOptions(selectedEvent.recurrenceRule, new Date(selectedEvent.startEpoch));
-      const nextFrequency = mapFrequencyFromRRule(parsed?.freq);
-      if (nextFrequency) {
-        setRecurrenceEnabled(true);
-        setRecurrenceFrequency(nextFrequency);
-      } else {
-        setRecurrenceEnabled(true);
-        setRecurrenceFrequency("WEEKLY");
-      }
-
-      setRecurrenceInterval(Math.max(1, parsed?.interval || 1));
-      setRecurrenceUntil(parsed?.until ? toDateInputValue(parsed.until) : "");
-    } else {
-      setRecurrenceEnabled(false);
-      setRecurrenceFrequency("WEEKLY");
-      setRecurrenceInterval(1);
-      setRecurrenceUntil("");
-    }
+    const recurrenceState = deriveRecurrenceFormState(selectedEvent);
+    setRecurrenceEnabled(recurrenceState.enabled);
+    setRecurrenceFrequency(recurrenceState.frequency);
+    setRecurrenceInterval(recurrenceState.interval);
+    setRecurrenceUntil(recurrenceState.until);
   }, [selectedEvent]);
 
   // ── Grid position helpers ──────────────────────────────────────────────────
@@ -1546,13 +1643,15 @@ export default function SchedulePage() {
                   <Stack spacing={1} sx={{ pt: 0.5 }}>
                     {recurringActionDialog?.mode === "edit" ? (
                       <>
-                        <Button
-                          fullWidth variant="outlined"
-                          sx={{ textTransform: "none", justifyContent: "flex-start" }}
-                          onClick={() => executeSave("this")}
-                        >
-                          This event only
-                        </Button>
+                        {!isRepeatFieldModified && (
+                          <Button
+                            fullWidth variant="outlined"
+                            sx={{ textTransform: "none", justifyContent: "flex-start" }}
+                            onClick={() => executeSave("this")}
+                          >
+                            This event only
+                          </Button>
+                        )}
                         <Button
                           fullWidth variant="outlined"
                           sx={{ textTransform: "none", justifyContent: "flex-start" }}
@@ -1576,6 +1675,13 @@ export default function SchedulePage() {
                           onClick={() => executeDelete("this")}
                         >
                           This event only
+                        </Button>
+                        <Button
+                          fullWidth variant="outlined" color="error"
+                          sx={{ textTransform: "none", justifyContent: "flex-start" }}
+                          onClick={() => executeDelete("thisAndFollowing")}
+                        >
+                          This and following events
                         </Button>
                         <Button
                           fullWidth variant="outlined" color="error"
