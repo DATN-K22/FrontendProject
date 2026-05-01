@@ -192,14 +192,8 @@ export default function CourseDetail() {
 
   if (loading || !course) {
     return (
-      <Box sx={{ bgcolor: "#f5f5f5", minHeight: "100vh", py: 4 }}>
-        <Box sx={{ pl: 4 }}>
-          <IconButton onClick={() => router.back()}>
-            <ArrowBackIcon />
-          </IconButton>
-        </Box>
-
-        <Container maxWidth="lg">
+      <Box sx={{ bgcolor: "#f5f5f5", minHeight: "100vh", py: 4, px: 4 }}>
+        <Container maxWidth="xl">
           {/* Skeleton for Header Image */}
           <Skeleton
             variant="rectangular"
@@ -348,14 +342,8 @@ export default function CourseDetail() {
   }
 
   return (
-    <Box sx={{ bgcolor: "#f5f5f5", minHeight: "100vh", py: 4 }}>
-      <Box sx={{ pl: 4 }}>
-        <IconButton onClick={() => router.back()}>
-          <ArrowBackIcon />
-        </IconButton>
-      </Box>
-
-      <Container maxWidth="lg">
+    <Box sx={{ bgcolor: "#f5f5f5", minHeight: "100vh", py: 4, px: 4 }}>
+      <Container maxWidth="xl">
         {/* Header Image */}
         <Box
           component="img"

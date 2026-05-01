@@ -77,12 +77,21 @@ export default function LoginPage() {
 
       authUtils.setAuth(tokens, user, rememberMe)
 
+<<<<<<< HEAD
       showAlert('Login successfully', 'info', {
         vertical: 'bottom',
         horizontal: 'left'
       })
       if (user.role === 'admin') {
         router.replace('/authenticated/admin')
+=======
+      showAlert("Login successfully", "info", {
+        vertical: "bottom",
+        horizontal: "left",
+      });
+      if (user.role === "Admin") {
+        router.replace("/authenticated/admin");
+>>>>>>> dde7ec2b2c013475ac0d5f24ef43b5a31d0cd80e
       } else {
         router.replace('/authenticated/homepage')
       }
