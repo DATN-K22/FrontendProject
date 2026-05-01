@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
-import ChatWidget from '@/components/ChatWidget'
+import ChatWidget from '@/components/chatWidget'
 import { ChatWidgetProvider } from '@/context/ChatWidgetContext'
 import { authUtils } from '@/utils/auth'
 
@@ -33,11 +33,9 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
 
   return (
     <ChatWidgetProvider userId={String(userData?.id ?? userData?._id ?? '') || null}>
-      <Header />
       {!isInstructor && <Header />}
       <main>{children}</main>
       {!isInstructor && <Footer />}
-      <Footer />
       <ChatWidget />
     </ChatWidgetProvider>
   )
