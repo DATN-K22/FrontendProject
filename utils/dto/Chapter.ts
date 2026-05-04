@@ -1,15 +1,15 @@
-import { LessonDetail } from "./Lesson";
+import { LessonDetail, LessonGeneral } from './Lesson'
 
 export type Chapter = {
-  id: string;
-  title: string;
-  short_description: string;
-  status: string;
-  sort_order: number;
-  lessons: LessonDetail[];
-  progress: number;
+  id: string
+  title: string
+  short_description: string
+  status: string
+  sort_order: number
+  lessons: LessonGeneral[]
+  progress: number
   course?: {
-    id: string;
-    title: string;
-  };
-};
+    id: string
+    title: string
+  }
+}

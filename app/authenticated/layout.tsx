@@ -4,9 +4,9 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Header from '@/components/header'
 import Footer from '@/components/footer'
-import ChatWidget from '@/components/chatWidget'
 import { ChatWidgetProvider } from '@/context/ChatWidgetContext'
 import { authUtils } from '@/utils/auth'
+import ChatWidget from '@/components/ChatWidget'
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -29,13 +29,11 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
     return null
   }
 
-  const isInstructor = pathname.includes('/instructor')
-
   return (
     <ChatWidgetProvider userId={String(userData?.id ?? userData?._id ?? '') || null}>
-      {!isInstructor && <Header />}
+      {<Header />}
       <main>{children}</main>
-      {!isInstructor && <Footer />}
+      {<Footer />}
       <ChatWidget />
     </ChatWidgetProvider>
   )

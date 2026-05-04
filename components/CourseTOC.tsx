@@ -23,7 +23,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/api'
 import { useParams } from 'next/navigation'
 import { useAlert } from '@/components/alert'
-import { LessonDetail as LessonDetailDTO } from '@/utils/dto/Lesson'
+import { LessonDetail as Lesson, LessonGeneral } from '@/utils/dto/Lesson'
 import { useRouter } from 'next/navigation'
 import { useVideoProgress } from '@/app/authenticated/(user)/course/[course_id]/(lesson)/layout'
 import { getLessonIcon } from '@/app/authenticated/(user)/course/[course_id]/page'
@@ -39,11 +39,11 @@ function formatDuration(seconds?: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-function chapterTotalDuration(lessons: LessonDetailDTO[]): number {
+function chapterTotalDuration(lessons: LessonGeneral[]): number {
   return lessons.reduce((acc, l) => acc + (l.duration ?? 0), 0)
 }
 
-function countFinished(lessons: LessonDetailDTO[]): number {
+function countFinished(lessons: LessonGeneral[]): number {
   return lessons.filter((l) => l.isFinished).length
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import api from '@/api/api'
 
 export function useLessonsByChapter(chapter_id: string) {
@@ -74,4 +74,30 @@ export function useDeleteLesson() {
     }
   }
   return { remove, loading }
+}
+
+export function useUpdateLessonOrder() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const updateLessonOrder = async (
+    course_id: string,
+    chapter_id: string,
+    dto: { lessons: { lesson_id: string; sort_order: number }[] }
+  ) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.patch(`/courses/lessons/${course_id}/${chapter_id}/order`, dto)
+      return res.data
+    } catch (e: any) {
+      const message = e.response?.data?.message || e.message || 'Failed to update lesson order'
+      setError(message)
+      throw e
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { updateLessonOrder, loading, error }
 }

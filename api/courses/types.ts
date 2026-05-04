@@ -1,3 +1,5 @@
+import { RecommendedCourse } from '@/components/coursesWithGeneralInfo'
+
 // ─── API Response wrapper (matches ApiResponse from backend) ─────────────────
 export interface ApiResponse<T> {
   success: boolean
@@ -14,34 +16,18 @@ export type CourseStatus = 'draft' | 'published' | 'archived'
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'AllLevels'
 
 // ─── Course entity (matches backend response) ────────────────────────────────
-export interface CourseEntity {
-  id: string
-  owner_id: string
-  title: string
-  short_description: string
-  long_description: string
-  thumbnail_url: string
-  price: string // backend returns string
-  status: CourseStatus
-  created_at: string
-  enrollments?: unknown[]
-  course_level?: CourseLevel
-  rating?: number
-  language?: string
-}
 
 // ─── Pagination info ──────────────────────────────────────────────────────────
-export interface PageInfo {
-  total_pages: number
-  total_items: number
-  offset: number
-  limit: number
+export interface PaginationMeta {
+  totalItems: number
+  totalPages: number
+  itemsPerPage: number
+  currentPage: number
 }
-
 // ─── Courses list response data ───────────────────────────────────────────────
 export interface CoursesListData {
-  courses: CourseEntity[]
-  page: PageInfo
+  data: RecommendedCourse[]
+  meta: PaginationMeta
 }
 
 // ─── CreateCourseDto ──────────────────────────────────────────────────────────

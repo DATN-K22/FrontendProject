@@ -65,11 +65,11 @@ export default function LoginPage() {
     try {
       if (!validateForm()) return
       showLoading()
-      const res: ApiResponse = await api.post('/users/auth/signin', {
+      const res: { data: ApiResponse } = await api.post('/users/auth/signin', {
         email,
         password
       })
-      const { tokens, user } = res.data.data
+      const { tokens, user } = res.data.data as { tokens: any; user: any }
       if (!tokens.access_token) {
         throw new Error('Login failed: no token returned')
       }

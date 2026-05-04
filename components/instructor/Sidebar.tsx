@@ -27,7 +27,7 @@ const BASE = '/authenticated/instructor'
 
 const mainNav = [
   { label: 'Overview', href: `${BASE}/overview`, icon: <Home size={18} /> },
-  { label: 'Courses', href: `${BASE}/courses`, icon: <BarChart2 size={18} /> },
+  { label: 'Courses', href: '/authenticated/course/my-courses', icon: <BarChart2 size={18} /> },
   { label: 'Learners', href: `${BASE}/learners`, icon: <BookOpen size={18} /> },
   { label: 'Forum / Q&A', href: `${BASE}/forum`, icon: <MessageSquare size={18} /> },
   { label: 'Calendar', href: `${BASE}/calendar`, icon: <Calendar size={18} /> }

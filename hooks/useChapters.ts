@@ -82,3 +82,28 @@ export function useDeleteChapter() {
   }, [])
   return { remove, loading, error }
 }
+
+export function useUpdateChapterOrder() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const updateOrder = useCallback(
+    async (course_id: string | number, dto: { chapters: { chapter_id: string; sort_order: number }[] }) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const res = await api.patch(`/courses/chapters/${course_id}/order`, dto)
+        return res.data
+      } catch (e: any) {
+        const message = e.response?.data?.message || e.message || 'Failed to update chapter order'
+        setError(message)
+        throw e
+      } finally {
+        setLoading(false)
+      }
+    },
+    []
+  )
+
+  return { updateOrder, loading, error }
+}
