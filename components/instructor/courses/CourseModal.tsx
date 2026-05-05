@@ -13,7 +13,7 @@ import {
   CircularProgress
 } from '@mui/material'
 import { X } from 'lucide-react'
-import type { CourseEntity, CreateCourseDto, UpdateCourseDto } from '@/api/courses/types'
+import type { CreateCourseDto, UpdateCourseDto } from '@/api/courses/types'
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
@@ -25,7 +25,7 @@ interface CourseModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (data: CreateCourseDto | UpdateCourseDto) => Promise<void>
-  editingCourse?: CourseEntity | null // if set → edit mode
+  editingCourse?: CreateCourseDto | UpdateCourseDto | null // if set → edit mode
   loading?: boolean
   error?: string | null
 }
@@ -48,13 +48,13 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
   useEffect(() => {
     if (editingCourse) {
       setForm({
-        owner_id: editingCourse.owner_id,
-        title: editingCourse.title,
-        short_description: editingCourse.short_description,
-        long_description: editingCourse.long_description,
-        thumbnail_url: editingCourse.thumbnail_url,
-        price: editingCourse.price,
-        status: editingCourse.status
+        owner_id: editingCourse.owner_id ?? '',
+        title: editingCourse.title ?? '',
+        short_description: editingCourse.short_description ?? '',
+        long_description: editingCourse.long_description ?? '',
+        thumbnail_url: editingCourse.thumbnail_url ?? '',
+        price: editingCourse.price ?? '',
+        status: (editingCourse.status as CreateCourseDto['status']) ?? 'draft'
       })
     } else {
       setForm(EMPTY)

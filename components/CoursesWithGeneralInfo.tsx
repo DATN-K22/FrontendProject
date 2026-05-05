@@ -4,6 +4,7 @@ import StarIcon from '@mui/icons-material/Star'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
 import LibraryBooksOutlinedIcon from '@mui/icons-material/LibraryBooksOutlined'
+import { CourseStatus } from '@/api/courses/types'
 
 export type RecommendedCourse = {
   id: string
@@ -11,12 +12,14 @@ export type RecommendedCourse = {
   title: string
   course_level: CourseLevel
   short_description: string
+  long_description?: string
   user: {
     name: string
     avt_url: string
   }
   rating: number
   price: number
+  status: CourseStatus
 }
 
 export enum CourseLevel {

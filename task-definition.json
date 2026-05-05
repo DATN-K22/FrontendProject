@@ -1,0 +1,38 @@
+{
+  "family": "datn-frontend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",        
+  "memory": "1024",   
+  "executionRoleArn": "arn:aws:iam::862087104858:role/ecsTaskExecutionRole",
+  "taskRoleArn":      "arn:aws:iam::862087104858:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "datn",
+      "image": "862087104858.dkr.ecr.ap-southeast-1.amazonaws.com/datn-frontend:latest",
+      "portMappings": [{ "containerPort": 4000, "protocol": "tcp" }],
+      "environment": [
+        { "name": "NODE_ENV",  "value": "production" },
+        { "name": "PORT",      "value": "4000" },
+        { "name": "HOSTNAME",  "value": "0.0.0.0" }
+      ],
+      "secrets": [], 
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/datn-frontend",
+          "awslogs-region":        "ap-southeast-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -qO- http://localhost:4000/ || exit 1"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "essential": true
+    }
+  ]
+}

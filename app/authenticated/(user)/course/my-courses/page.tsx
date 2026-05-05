@@ -150,7 +150,7 @@ export default function MyCoursesPage() {
 
   const [teacherView, setTeacherView] = useState<'teaching' | 'enrolled'>('teaching')
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingCourse, setEditingCourse] = useState<RecommendedCourse | null>(null)
+  const [editingCourse, setEditingCourse] = useState<CreateCourseDto | UpdateCourseDto | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deletingCourse, setDeletingCourse] = useState<RecommendedCourse | null>(null)
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -238,7 +238,7 @@ export default function MyCoursesPage() {
     setEditingCourse(null)
     setModalOpen(true)
   }
-  const openEdit = (course: RecommendedCourse) => {
+  const openEdit = (course: CreateCourseDto | UpdateCourseDto) => {
     setEditingCourse(course)
     setModalOpen(true)
   }
@@ -257,6 +257,7 @@ export default function MyCoursesPage() {
         const value = (updateData as any)[key]
         if (value === '' || value === undefined) delete (updateData as any)[key]
       })
+      if (!editingCourse.id) return
       const updated = await update(editingCourse.id, updateData)
       if (updated) {
         setTeachingCourses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
@@ -375,7 +376,7 @@ export default function MyCoursesPage() {
             }
             onManageCourse={isTeacher && teacherView === 'teaching' ? (item) => goToCourseDetail(item.id) : undefined}
             onEditCourse={
-              isTeacher && teacherView === 'teaching' ? (item) => openEdit(item as RecommendedCourse) : undefined
+              isTeacher && teacherView === 'teaching' ? (item) => openEdit(item as CreateCourseDto) : undefined
             }
             onDeleteCourse={isTeacher && teacherView === 'teaching' ? (item) => openDelete(item.id) : undefined}
           />

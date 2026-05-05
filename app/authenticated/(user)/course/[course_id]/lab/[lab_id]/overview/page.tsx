@@ -12,7 +12,8 @@ import {
   Chip,
   Skeleton,
   IconButton,
-  CircularProgress
+  CircularProgress,
+  type ChipProps
 } from '@mui/material'
 import {
   AccessTime,
@@ -110,7 +111,7 @@ export default function LabOverview() {
   const fetchLabHistory = async () => {
     try {
       const response = await api.get(
-        `/labs/leases/me?pageSize=10&userEmail=${userData.email}&leaseTemplateId=${labData?.leaseTemplateId ?? '0d741bd6-cb8d-406c-a981-e01a87c7b102'}`
+        `/labs/leases/me?pageSize=10&userEmail=${userData.email}&leaseTemplateId=${labData?.leaseTemplateId !== '' ? labData?.leaseTemplateId : '0d741bd6-cb8d-406c-a981-e01a87c7b102'}`
       )
       const result = response.data?.data?.result ?? []
 
@@ -148,7 +149,8 @@ export default function LabOverview() {
       if (!activeSession) {
         leaseSession = (
           await api.post('/labs/leases', {
-            leaseTemplateUuid: labData?.leaseTemplateId ?? '',
+            leaseTemplateUuid:
+              labData?.leaseTemplateId !== '' ? labData?.leaseTemplateId : '0d741bd6-cb8d-406c-a981-e01a87c7b102',
             comments: `Started from course ${course_id}`,
             userEmail: userData.email
           })
@@ -199,7 +201,7 @@ export default function LabOverview() {
     }
   }
 
-  const getStatusColor = (status: LabHistoryStatus): string => {
+  const getStatusColor = (status: LabHistoryStatus): ChipProps['color'] => {
     switch (status) {
       case 'complete':
         return 'success'

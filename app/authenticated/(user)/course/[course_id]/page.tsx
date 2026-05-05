@@ -66,7 +66,7 @@ import { useCreateLesson, useDeleteLesson, useUpdateLesson, useUpdateLessonOrder
 import ChapterModal from '@/components/instructor/courses/ChapterModal'
 import LessonModal from '@/components/instructor/courses/LessonModal'
 import ConfirmModal from '@/components/confirm'
-import { FlaskConical, HelpCircle, PlayCircle } from 'lucide-react'
+import { CodeIcon, FlaskConical, HelpCircle, PlayCircle } from 'lucide-react'
 
 // Helper function to format duration (seconds to mm:ss)
 const formatDuration = (seconds?: number): string => {
@@ -869,7 +869,7 @@ export default function CourseDetail() {
                                     <IconButton
                                       size='small'
                                       onClick={(e) => {
-                                        if (lesson.type === 'lesson')
+                                        if (lesson.type === 'lesson' || lesson.type === 'lab')
                                           router.push(
                                             `/authenticated/instructor/course/${courseId}/lesson/${lesson.id}/media`
                                           )
@@ -884,6 +884,18 @@ export default function CourseDetail() {
                                         <QuizIcon fontSize='small' />
                                       )}
                                     </IconButton>
+                                    {lesson.type === 'lab' && (
+                                      <IconButton
+                                        size='small'
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          window.open(`https://d1rj9bz6vwjklr.cloudfront.net/`)
+                                        }}
+                                      >
+                                        <CodeIcon fontSize='small' />
+                                      </IconButton>
+                                    )}
+
                                     <IconButton
                                       size='small'
                                       onClick={(e) => {

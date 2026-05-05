@@ -20,13 +20,19 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { usePathname, useRouter } from 'next/navigation'
 import { authUtils } from '@/utils/auth'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
-  const { userData } = authUtils.getAuth()
+  const [userData, setUserData] = useState<null | ReturnType<typeof authUtils.getAuth>['userData']>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+
+  useEffect(() => {
+    const { userData } = authUtils.getAuth()
+    setUserData(userData)
+  }, [])
+
   const open = Boolean(anchorEl)
   const menus = [
     { label: 'Home', path: '/authenticated/homepage' },

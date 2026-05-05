@@ -16,7 +16,21 @@ export type CourseStatus = 'draft' | 'published' | 'archived'
 export type CourseLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'AllLevels'
 
 // ─── Course entity (matches backend response) ────────────────────────────────
-
+export interface CourseEntity {
+  id: string
+  owner_id: string
+  title: string
+  short_description: string
+  long_description: string
+  thumbnail_url: string
+  price: string // backend returns string
+  status: CourseStatus
+  created_at: string
+  enrollments?: unknown[]
+  course_level?: CourseLevel
+  rating?: number
+  language?: string
+}
 // ─── Pagination info ──────────────────────────────────────────────────────────
 export interface PaginationMeta {
   totalItems: number
@@ -32,6 +46,7 @@ export interface CoursesListData {
 
 // ─── CreateCourseDto ──────────────────────────────────────────────────────────
 export interface CreateCourseDto {
+  id?: string
   owner_id: string
   title: string
   short_description?: string
