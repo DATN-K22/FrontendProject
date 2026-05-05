@@ -2,7 +2,8 @@ name: Deploy DATN Frontend to ECS
 
 on:
   push:
-    branches: [main]
+    branches:
+      - '*'
 
 env:
   AWS_REGION: ap-southeast-1
