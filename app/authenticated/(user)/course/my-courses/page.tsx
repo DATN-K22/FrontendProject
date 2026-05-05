@@ -1,6 +1,6 @@
 'use client'
 
-import CoursesWithGeneralInfo, { RecommendedCourse } from '@/components/coursesWithGeneralInfo'
+import CoursesWithGeneralInfo, { RecommendedCourse } from '@/components/CoursesWithGeneralInfo'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Box,

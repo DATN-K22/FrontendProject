@@ -7,8 +7,8 @@ import { Visibility, VisibilityOff } from '@mui/icons-material'
 import api from '@/api/api'
 import { authUtils } from '@/utils/auth'
 import { useRouter } from 'next/navigation'
-import { useLoading } from '@/components/loading'
-import { useAlert } from '@/components/alert'
+import { useLoading } from '@/components/Loading'
+import { useAlert } from '@/components/Alert'
 
 type RegisterResponse = {
   success: boolean

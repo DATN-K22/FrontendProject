@@ -1,7 +1,7 @@
 'use client'
 
 import api from '@/api/api'
-import { useAlert } from '@/components/alert'
+import { useAlert } from '@/components/Alert'
 import { authUtils } from '@/utils/auth'
 import QuizIcon from '@mui/icons-material/Quiz'
 import { CheckCircle, Cancel, PlayCircle, Help, CalendarMonth } from '@mui/icons-material'

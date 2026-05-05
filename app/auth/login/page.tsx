@@ -19,8 +19,8 @@ import api from '@/api/api'
 import { useRouter } from 'next/navigation'
 import { ApiResponse } from '@/utils/dto/ApiResponse'
 import { authUtils } from '@/utils/auth'
-import { useLoading } from '@/components/loading'
-import { useAlert } from '@/components/alert'
+import { useLoading } from '@/components/Loading'
+import { useAlert } from '@/components/Alert'
 
 type FormErrors = {
   email?: string

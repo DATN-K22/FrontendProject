@@ -10,12 +10,12 @@ import WorkIcon from '@mui/icons-material/Work'
 import SchoolIcon from '@mui/icons-material/School'
 import StarIcon from '@mui/icons-material/Star'
 import { useRouter } from 'next/navigation'
-import { useAlert } from '@/components/alert'
+import { useAlert } from '@/components/Alert'
 import { ApiResponse } from '@/utils/dto/ApiResponse'
-import { CourseLevel } from '@/components/coursesWithGeneralInfo'
+import { CourseLevel } from '@/components/CoursesWithGeneralInfo'
 import { authUtils } from '@/utils/auth'
-import CoursesWithProgress, { RelearningCourse } from '@/components/coursesWithProgress'
-import CoursesWithGeneralInfo, { RecommendedCourse } from '@/components/coursesWithGeneralInfo'
+import CoursesWithProgress, { RelearningCourse } from '@/components/CoursesWithProgress'
+import CoursesWithGeneralInfo, { RecommendedCourse } from '@/components/CoursesWithGeneralInfo'
 
 /*=== Define type ===*/
 

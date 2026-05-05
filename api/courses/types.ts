@@ -1,4 +1,4 @@
-import { RecommendedCourse } from '@/components/coursesWithGeneralInfo'
+import { RecommendedCourse } from '@/components/CoursesWithGeneralInfo'
 
 // ─── API Response wrapper (matches ApiResponse from backend) ─────────────────
 export interface ApiResponse<T> {

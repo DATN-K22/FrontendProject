@@ -4,8 +4,8 @@ import { Box, Container, Typography, Tab, Tabs, List, ListItem, ListItemText, Sk
 import { ExpandMore, Lock, CheckCircle, VideoLibrary, AccessTime, AttachFile, Description } from '@mui/icons-material'
 import { useEffect, useRef, useState } from 'react'
 import api from '@/api/api'
-import { useAlert } from '@/components/alert'
-import VideoPlayer from '@/components/videoPlayer'
+import { useAlert } from '@/components/Alert'
+import VideoPlayer from '@/components/VideoPlayer'
 import { useVideoProgress } from '../layout'
 import { authUtils } from '@/utils/auth'
 

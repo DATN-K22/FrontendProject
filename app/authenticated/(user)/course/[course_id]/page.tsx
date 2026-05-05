@@ -53,10 +53,10 @@ import {
 } from '@mui/icons-material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { useParams, useRouter } from 'next/navigation'
-import { useAlert } from '@/components/alert'
+import { useAlert } from '@/components/Alert'
 import api from '@/api/api'
-import SafeHtml from '@/components/safeHtml'
-import CircularProgressWithLabel from '@/components/circularProgressWithLabel'
+import SafeHtml from '@/components/SafeHtml'
+import CircularProgressWithLabel from '@/components/CircularProgressWithLabel'
 import { Course } from '@/utils/dto/Course'
 import { Chapter } from '@/utils/dto/Chapter'
 import { LessonGeneral } from '@/utils/dto/Lesson'
@@ -65,7 +65,7 @@ import { useCreateChapter, useDeleteChapter, useUpdateChapter, useUpdateChapterO
 import { useCreateLesson, useDeleteLesson, useUpdateLesson, useUpdateLessonOrder } from '@/hooks/useLessons'
 import ChapterModal from '@/components/instructor/courses/ChapterModal'
 import LessonModal from '@/components/instructor/courses/LessonModal'
-import ConfirmModal from '@/components/confirm'
+import ConfirmModal from '@/components/Confirm'
 import { CodeIcon, FlaskConical, HelpCircle, PlayCircle } from 'lucide-react'
 
 // Helper function to format duration (seconds to mm:ss)

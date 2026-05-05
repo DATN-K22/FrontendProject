@@ -45,7 +45,7 @@ import { QuestionType, QuizOption, QuizQuestion } from '@/utils/dto/Quiz'
 import { useQuiz } from '@/hooks/useQuiz'
 import { useParams, useRouter } from 'next/navigation'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import ConfirmModal from '@/components/confirm'
+import ConfirmModal from '@/components/Confirm'
 
 // ════════════════════════════════════════════════════════════════════════════════
 // Constants

@@ -8,7 +8,7 @@ import type {
   PaginationMeta,
   UpdateCourseDto
 } from '@/api/courses/types'
-import { RecommendedCourse } from '@/components/coursesWithGeneralInfo'
+import { RecommendedCourse } from '@/components/CoursesWithGeneralInfo'
 
 export const DEFAULT_META: PaginationMeta = {
   totalItems: 0,

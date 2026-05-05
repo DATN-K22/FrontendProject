@@ -32,9 +32,9 @@ import {
   useUploadDocuments
 } from '@/hooks/useMediaFile'
 import { FileResource, LessonResources } from '@/api/courses/types'
-import { useAlert } from '@/components/alert'
+import { useAlert } from '@/components/Alert'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-import ConfirmModal from '@/components/confirm'
+import ConfirmModal from '@/components/Confirm'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

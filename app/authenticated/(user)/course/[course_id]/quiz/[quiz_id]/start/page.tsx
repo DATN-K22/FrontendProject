@@ -1,7 +1,7 @@
 'use client'
 
 import api from '@/api/api'
-import { useAlert } from '@/components/alert'
+import { useAlert } from '@/components/Alert'
 import { authUtils } from '@/utils/auth'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { ArrowBack, CheckCircle, Replay, WarningAmber } from '@mui/icons-material'
