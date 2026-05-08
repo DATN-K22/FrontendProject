@@ -300,7 +300,8 @@ function formatGmtOffset(offsetMinutes: number) {
 }
 
 const hasExplicitTimezone = (value: string) => {
-  return /(?:Z|[+\-]\d{2}:?\d{2})$/i.test(value.trim());
+  // Matches Z, +HH:MM, +HHMM, or short form +HH (e.g. "+00" emitted by Postgres)
+  return /(?:Z|[+\-]\d{2}(?::?\d{2})?)$/i.test(value.trim());
 };
 
 const parseLocalDateTimeString = (value: string) => {
@@ -463,14 +464,40 @@ const expandBackendEvents = (
   const overrides = events.filter((event) => event.original_event_id && event.recurrence_id);
 
   const overrideMap = new Map<string, BackendEvent>();
+  // Also track which (masterId|recurrenceIso) slots are suppressed by an override,
+  // so we skip the original occurrence even when the backend didn't add an exDate.
+  const suppressedByOverride = new Set<string>();
+
   overrides.forEach((override) => {
     const recurrenceDate = parseMaybeDate(override.recurrence_id);
     if (!recurrenceDate) return;
-    const key = `${String(override.original_event_id)}|${recurrenceDate.toISOString()}`;
+    const recurrenceIso = recurrenceDate.toISOString();
+    const key = `${String(override.original_event_id)}|${recurrenceIso}`;
     overrideMap.set(key, override);
+    // Always suppress the original slot — regardless of whether the keys align for
+    // the override map lookup — because the override replaces that occurrence.
+    suppressedByOverride.add(key);
+  });
+
+  console.group("[Schedule] overrideMap keys");
+  overrideMap.forEach((_, k) => console.log(" ", k));
+  console.groupEnd();
+
+  // Build a map of masterId → Set<exceptionIso> so the fallback loop can check
+  // if an override's recurrence_id was already excepted (i.e. the override was deleted).
+  const masterExceptionSetMap = new Map<string, Set<string>>();
+  masters.forEach((event) => {
+    const exSet = new Set(
+      (event.exception_dates ?? [])
+        .map((ex) => parseMaybeDate(ex.exception_date))
+        .filter((d): d is Date => Boolean(d))
+        .map((d) => d.toISOString()),
+    );
+    masterExceptionSetMap.set(String(event.id), exSet);
   });
 
   const expanded: CalendarEvent[] = [];
+  const consumedOverrideKeys = new Set<string>();
 
   masters.forEach((event) => {
     if (event.status === "CANCELLED") return;
@@ -498,15 +525,19 @@ const expandBackendEvents = (
 
     recurringStarts.forEach((occurrenceStart) => {
       const occurrenceIso = occurrenceStart.toISOString();
-      if (exceptionSet.has(occurrenceIso)) return;
-
       const overrideKey = `${String(event.id)}|${occurrenceIso}`;
+
+      // Skip if explicitly excepted via exception_dates OR suppressed by an override's recurrence_id
+      if (exceptionSet.has(occurrenceIso) || suppressedByOverride.has(overrideKey)) return;
+
       const override = overrideMap.get(overrideKey);
+      console.log(`[Schedule] occurrence lookup: key="${overrideKey}" → ${override ? `MATCH (id=${override.id})` : "no match"}`);
       if (override && override.status !== "CANCELLED") {
         const overrideStart = parseMaybeDate(override.time_start);
         const overrideEnd = parseMaybeDate(override.time_end);
         if (overrideStart && overrideEnd) {
           expanded.push(buildCalendarEvent(override, overrideStart, overrideEnd, offsetMinutes, occurrenceIso));
+          consumedOverrideKeys.add(overrideKey);
         }
         return;
       }
@@ -514,6 +545,35 @@ const expandBackendEvents = (
       const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
       expanded.push(buildCalendarEvent(event, occurrenceStart, occurrenceEnd, offsetMinutes, occurrenceIso));
     });
+  });
+
+  // Render any overrides whose key never matched a RRule occurrence.
+  // This happens when the recurrence_id key doesn't align with the rrule expansion
+  // (e.g. timezone drift). The override is a valid single-instance event — render it
+  // directly using its own time_start / time_end.
+  overrideMap.forEach((override, key) => {
+    if (consumedOverrideKeys.has(key)) return;
+    if (override.status === "CANCELLED") return;
+
+    // If the master has this override's recurrence_id in its exception_dates,
+    // the override was deleted — don't render it.
+    const recurrenceDate = parseMaybeDate(override.recurrence_id);
+    if (recurrenceDate) {
+      const masterExSet = masterExceptionSetMap.get(String(override.original_event_id));
+      if (masterExSet?.has(recurrenceDate.toISOString())) return;
+    }
+
+    const overrideStart = parseMaybeDate(override.time_start);
+    const overrideEnd = parseMaybeDate(override.time_end);
+    if (!overrideStart || !overrideEnd) return;
+    if (overrideStart.getTime() < rangeStart.getTime() || overrideStart.getTime() > rangeEnd.getTime()) return;
+
+    // Pass recurrence_id as idSuffix so CalendarEvent.occurrenceIso = recurrence_id.
+    // executeDelete uses occurrenceIso as exception_date — it must be the original slot
+    // (recurrence_id), not the rescheduled time_start.
+    const occurrenceSuffix = recurrenceDate?.toISOString() ?? overrideStart.toISOString();
+    console.log(`[Schedule] Rendering unmatched override id=${override.id} at ${overrideStart.toISOString()} (occurrenceIso=${occurrenceSuffix})`);
+    expanded.push(buildCalendarEvent(override, overrideStart, overrideEnd, offsetMinutes, occurrenceSuffix));
   });
 
   expanded.sort((left, right) => {
@@ -641,14 +701,30 @@ export default function SchedulePage() {
         ]);
 
         const successPayloads: unknown[] = [];
-        responses.forEach((result) => {
-          if (result.status === "fulfilled") successPayloads.push(result.value.data);
+        responses.forEach((result, i) => {
+          if (result.status === "fulfilled") {
+            console.log(`[Schedule] API response #${i}:`, result.value.data);
+            successPayloads.push(result.value.data);
+          } else {
+            console.warn(`[Schedule] API request #${i} failed:`, result.reason);
+          }
         });
 
         const mergedEvents = successPayloads.flatMap((payload) => extractEventsFromPayload(payload));
         const dedupedById = Array.from(
           new Map(mergedEvents.map((event) => [String(event.id), event])).values(),
         );
+
+        console.group("[Schedule] Backend events after dedup");
+        console.log("Total:", dedupedById.length);
+        console.log("Masters (no original_event_id):", dedupedById.filter(e => !e.original_event_id));
+        console.log("Overrides (has original_event_id + recurrence_id):", dedupedById.filter(e => e.original_event_id && e.recurrence_id));
+        dedupedById.forEach(e => {
+          console.log(
+            `  id=${e.id} | original_event_id=${e.original_event_id ?? "—"} | recurrence_id=${String(e.recurrence_id ?? "—")} | time_start=${String(e.time_start)} | rrule=${e.rrule_string ?? "—"}`
+          );
+        });
+        console.groupEnd();
 
         if (active) setBackendEvents(dedupedById);
       } catch {
@@ -1057,6 +1133,13 @@ export default function SchedulePage() {
     setViewMonthDate(date);
   };
 
+  const handleMiniCalendarShift = (direction: -1 | 1) => {
+    setViewMonthDate((prev) => {
+      const next = new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
+      return next;
+    });
+  };
+
   const handleShift = (direction: -1 | 1) => {
     const distance = viewMode === "week" ? 7 : 1;
     const nextDate = addDays(selectedDate, direction * distance);
@@ -1111,9 +1194,25 @@ export default function SchedulePage() {
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "240px 1fr 300px" } }}>
             {/* ── Left sidebar: mini calendar + incoming events ── */}
             <Box sx={{ borderRight: { lg: "1px solid #F1E4BA" }, backgroundColor: "#FFFBEC", p: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5, color: "#4A3D18" }}>
-                {monthYearLabel(viewMonthDate)}
-              </Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleMiniCalendarShift(-1)}
+                  sx={{ color: "#8D7A40", "&:hover": { backgroundColor: "#F6E9B0" } }}
+                >
+                  <ChevronLeftIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#4A3D18", userSelect: "none" }}>
+                  {monthYearLabel(viewMonthDate)}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => handleMiniCalendarShift(1)}
+                  sx={{ color: "#8D7A40", "&:hover": { backgroundColor: "#F6E9B0" } }}
+                >
+                  <ChevronRightIcon fontSize="small" />
+                </IconButton>
+              </Stack>
               <Stack direction="row" sx={{ mb: 1, color: "#8D7A40", fontSize: 12, fontWeight: 600 }}>
                 {"Su Mo Tu We Th Fr Sa".split(" ").map((day) => (
                   <Box key={day} sx={{ width: 28, textAlign: "center" }}>
