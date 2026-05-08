@@ -20,6 +20,7 @@ type ChapterItemDetail = {
   long_description: string
   duration: number
   isFinished: boolean
+  leaseTemplateId?: string // chỉ có lab mới có
   chapter: any
   resources?: {
     video: { link: string; title: string }[]
@@ -325,9 +326,13 @@ export default function LessonDetail() {
                       <Button
                         variant='contained'
                         size='large'
-                        onClick={() =>
-                          router.push(`/authenticated/course/${course_id}/${data.type}/${lesson_id}/overview`)
-                        }
+                        onClick={() => {
+                          if (data.type === 'lab') {
+                            router.push(
+                              `/authenticated/course/${course_id}/${data.type}/${lesson_id}/${data.leaseTemplateId}/overview`
+                            )
+                          } else router.push(`/authenticated/course/${course_id}/${data.type}/${lesson_id}/overview`)
+                        }}
                         sx={{
                           background: 'white',
                           color: '#ffd700',
