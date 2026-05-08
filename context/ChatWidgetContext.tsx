@@ -88,11 +88,48 @@ export const useChatWidget = () => useContext(chatWidgetContext)
 // Helper
 // ─────────────────────────────────────────
 function detectPageContext(pathname: string): PageContext {
-  const lesson = pathname.match(/courses\/([^/]+)\/lessons\/([^/]+)/)
-  if (lesson) return { type: 'lesson', courseId: lesson[1], lessonId: lesson[2] }
+  const segments = pathname.split('/').filter(Boolean)
+  const courseSegmentIndex = segments.findIndex(
+    (segment) => segment === 'course' || segment === 'courses'
+  )
 
-  const course = pathname.match(/courses\/([^/]+)/)
-  if (course) return { type: 'course', courseId: course[1] }
+  if (courseSegmentIndex === -1) return { type: 'general' }
 
-  return { type: 'general' }
+  const courseId = segments[courseSegmentIndex + 1]
+  if (!courseId) return { type: 'general' }
+
+  const firstSegmentAfterCourseId = segments[courseSegmentIndex + 2]
+  if (!firstSegmentAfterCourseId) {
+    return { type: 'course', courseId }
+  }
+
+  if (
+    firstSegmentAfterCourseId === 'lesson' ||
+    firstSegmentAfterCourseId === 'lessons'
+  ) {
+    const lessonId = segments[courseSegmentIndex + 3]
+    if (lessonId) return { type: 'lesson', courseId, lessonId }
+    return { type: 'course', courseId }
+  }
+
+  const nonLessonRouteSegments = new Set([
+    'quiz',
+    'quizzes',
+    'lab',
+    'labs',
+    'payment',
+    'overview',
+    'start',
+    'confirm',
+  ])
+
+  if (!nonLessonRouteSegments.has(firstSegmentAfterCourseId)) {
+    return {
+      type: 'lesson',
+      courseId,
+      lessonId: firstSegmentAfterCourseId,
+    }
+  }
+
+  return { type: 'course', courseId }
 }
