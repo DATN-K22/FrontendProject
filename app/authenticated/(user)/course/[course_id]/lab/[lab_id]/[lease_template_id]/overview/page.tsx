@@ -111,7 +111,7 @@ export default function LabOverview() {
   const fetchLabHistory = async () => {
     try {
       const response = await api.get(
-        `/labs/leases/me?pageSize=10&userEmail=${userData.email}&leaseTemplateId=${lease_template_id}`
+        `/courses/lab/me?pageSize=10&userId=${userData.id}&leaseTemplateId=${lease_template_id}`
       )
       const result = response.data?.data?.result ?? []
 
@@ -148,11 +148,11 @@ export default function LabOverview() {
       let leaseSession
       if (!activeSession) {
         leaseSession = (
-          await api.post('/labs/leases', {
+          await api.post('/courses/lab/start', {
+            chapterItemId: labData?.id || '',
             leaseTemplateUuid:
-              labData?.leaseTemplateId !== '' ? labData?.leaseTemplateId : '0d741bd6-cb8d-406c-a981-e01a87c7b102',
-            comments: `Started from course ${course_id}`,
-            userEmail: userData.email
+              labData?.leaseTemplateId !== '' ? labData?.leaseTemplateId : '9a22f46b-8ced-46d5-82a9-dce67b937c96',
+            userId: userData.id
           })
         ).data.data
 

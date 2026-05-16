@@ -17,9 +17,11 @@ import {
   StepLabel,
   Chip,
   Divider,
-  LinearProgress
+  LinearProgress,
+  Autocomplete
 } from '@mui/material'
 import { X, PlayCircle, FlaskConical, HelpCircle, Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import api from '@/api/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,7 @@ interface LessonFormState {
   duration: number
   is_free?: boolean
   leaseTemplateId?: string
+  iamRoleName?: string
   instruction?: string
   lessonType: LessonType
 }
@@ -44,6 +47,17 @@ interface LessonModalProps {
   editingLesson?: any | null
   loading?: boolean
   error?: string | null
+}
+
+interface LeaseTemplate {
+  uuid: string
+  name: string
+  description: string
+}
+
+interface IamRole {
+  roleName: string
+  roleArn: string
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -91,6 +105,7 @@ const EMPTY_FORM: LessonFormState = {
   duration: 0,
   is_free: false,
   leaseTemplateId: '',
+  iamRoleName: '',
   instruction: '',
   lessonType: 'lesson'
 }
@@ -105,6 +120,90 @@ const fieldSx = {
   },
   '& .MuiInputLabel-root': { fontSize: '0.875rem' },
   '& .MuiInputLabel-root.Mui-focused': { color: '#2563eb' }
+}
+
+// ─── SearchableSelect ──────────────────────────────────────────────────────────
+
+interface SearchableSelectProps<T> {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: T[]
+  getOptionValue: (opt: T) => string
+  getOptionLabel: (opt: T) => string
+  getOptionSubLabel?: (opt: T) => string
+  loading: boolean
+  onSearch: (keyword: string) => void
+  placeholder?: string
+}
+
+function SearchableSelect<T>({
+  label,
+  value,
+  onChange,
+  options,
+  getOptionValue,
+  getOptionLabel,
+  getOptionSubLabel,
+  loading,
+  onSearch,
+  placeholder
+}: SearchableSelectProps<T>) {
+  const selected = options.find((o) => getOptionValue(o) === value) ?? null
+
+  return (
+    <Autocomplete
+      options={options}
+      value={selected}
+      loading={loading}
+      onChange={(_, opt) => onChange(opt ? getOptionValue(opt) : '')}
+      onInputChange={(_, keyword) => onSearch(keyword)}
+      getOptionLabel={(opt) => getOptionLabel(opt)}
+      isOptionEqualToValue={(opt, val) => getOptionValue(opt) === getOptionValue(val)}
+      filterOptions={(x) => x}
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label={label}
+          placeholder={placeholder}
+          sx={fieldSx}
+          InputProps={{
+            ...params.InputProps,
+            endAdornment: (
+              <>
+                {loading && <CircularProgress size={14} sx={{ mr: 1 }} />}
+                {params.InputProps.endAdornment}
+              </>
+            )
+          }}
+        />
+      )}
+      renderOption={(props, opt) => (
+        <Box component='li' {...props} key={getOptionValue(opt)} sx={{ py: 1.2, px: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: '0.85rem', fontWeight: 500, color: '#111827' }}>
+              {getOptionLabel(opt)}
+            </Typography>
+            {getOptionSubLabel && (
+              <Typography sx={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+                {getOptionSubLabel(opt)}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      )}
+      slotProps={{
+        paper: {
+          sx: { borderRadius: '12px', mt: 0.5, boxShadow: '0 4px 24px rgba(0,0,0,0.1)' }
+        }
+      }}
+      noOptionsText={
+        <Typography sx={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', py: 1 }}>
+          No results found
+        </Typography>
+      }
+    />
+  )
 }
 
 // ─── TypeSelector ─────────────────────────────────────────────────────────────
@@ -192,19 +291,77 @@ const CoreForm = memo(
     const set = (field: keyof LessonFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       onChange(field, e.target.value)
 
+    const [leaseTemplates, setLeaseTemplates] = useState<LeaseTemplate[]>([])
+    const [leaseLoading, setLeaseLoading] = useState(false)
+
+    const [iamRoles, setIamRoles] = useState<IamRole[]>([])
+    const [iamLoading, setIamLoading] = useState(false)
+
+    const fetchLeaseTemplates = useCallback(async (keyword: string) => {
+      setLeaseLoading(true)
+      try {
+        const res = await api.get(`/courses/lab/lease-templates?keyword=${encodeURIComponent(keyword)}`)
+        setLeaseTemplates(res.data.data ?? [])
+      } catch {
+        setLeaseTemplates([])
+      } finally {
+        setLeaseLoading(false)
+      }
+    }, [])
+
+    const fetchIamRoles = useCallback(async (keyword: string) => {
+      setIamLoading(true)
+      try {
+        const res = await api.get(`/courses/lab/iam-roles?keyword=${encodeURIComponent(keyword)}`)
+        setIamRoles(res.data.data ?? [])
+      } catch {
+        setIamRoles([])
+      } finally {
+        setIamLoading(false)
+      }
+    }, [])
+
+    // Debounced search handlers
+    const handleLeaseSearch = useCallback(
+      (() => {
+        let timer: ReturnType<typeof setTimeout>
+        return (keyword: string) => {
+          clearTimeout(timer)
+          timer = setTimeout(() => fetchLeaseTemplates(keyword), 300)
+        }
+      })(),
+      [fetchLeaseTemplates]
+    )
+
+    const handleIamSearch = useCallback(
+      (() => {
+        let timer: ReturnType<typeof setTimeout>
+        return (keyword: string) => {
+          clearTimeout(timer)
+          timer = setTimeout(() => fetchIamRoles(keyword), 300)
+        }
+      })(),
+      [fetchIamRoles]
+    )
+
+    useEffect(() => {
+      if (lessonType === 'lab') {
+        fetchLeaseTemplates('')
+        fetchIamRoles('')
+      }
+    }, [lessonType, fetchLeaseTemplates, fetchIamRoles])
+
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField label='Title *' value={form.title} onChange={set('title')} fullWidth sx={fieldSx} />
 
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <TextField select label='Status' value={form.status} onChange={set('status')} fullWidth sx={fieldSx}>
-            {STATUS_OPTIONS.map((o) => (
-              <MenuItem key={o.value} value={o.value} sx={{ fontSize: '0.875rem' }}>
-                {o.label}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Box>
+        <TextField select label='Status' value={form.status} onChange={set('status')} fullWidth sx={fieldSx}>
+          {STATUS_OPTIONS.map((o) => (
+            <MenuItem key={o.value} value={o.value} sx={{ fontSize: '0.875rem' }}>
+              {o.label}
+            </MenuItem>
+          ))}
+        </TextField>
 
         <TextField
           label='Short Description'
@@ -246,14 +403,32 @@ const CoreForm = memo(
 
         {lessonType === 'lab' && (
           <>
-            <TextField
-              label='Lease Template ID'
+            <SearchableSelect<LeaseTemplate>
+              label='Lease Template'
               value={form.leaseTemplateId ?? ''}
-              onChange={set('leaseTemplateId')}
-              fullWidth
-              placeholder='e.g. tmpl_abc123'
-              sx={fieldSx}
+              onChange={(val) => onChange('leaseTemplateId', val)}
+              options={leaseTemplates}
+              getOptionValue={(o) => o.uuid}
+              getOptionLabel={(o) => o.name}
+              getOptionSubLabel={(o) => o.description}
+              loading={leaseLoading}
+              onSearch={handleLeaseSearch}
+              placeholder='Search lease templates...'
             />
+
+            <SearchableSelect<IamRole>
+              label='IAM Role'
+              value={form.iamRoleName ?? ''}
+              onChange={(val) => onChange('iamRoleName', val)}
+              options={iamRoles}
+              getOptionValue={(o) => o.roleName}
+              getOptionLabel={(o) => o.roleName}
+              getOptionSubLabel={(o) => o.roleArn}
+              loading={iamLoading}
+              onSearch={handleIamSearch}
+              placeholder='Search IAM roles...'
+            />
+
             <TextField
               label='Instructions'
               value={form.instruction ?? ''}

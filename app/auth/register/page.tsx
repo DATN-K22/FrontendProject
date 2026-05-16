@@ -88,18 +88,9 @@ export default function RegisterPage() {
         last_name: lastName
       })
 
-      const { tokens, user } = res.data.data
-
-      if (!tokens.accessToken) {
-        throw new Error('Login failed: no token returned')
-      }
-
-      authUtils.setAuth(tokens, user)
-
-      if (user.role === 'admin') {
-        window.location.href = '/admin'
-      } else {
-        router.replace('/authenticated/hompage')
+      if (res.data?.success) {
+        showAlert('Registration successful!', 'success', { vertical: 'bottom', horizontal: 'left' })
+        router.replace('/auth/activate-account?email=' + encodeURIComponent(email))
       }
     } catch (error: any) {
       console.error('Register error:', error)

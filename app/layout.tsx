@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import '@calendarjs/ce/dist/style.css'
 import Providers from './providers'
 import { LoadingProvider } from '@/components/Loading'
 import { AlertProvider } from '@/components/Alert'
-import './globals.css'
-import '@calendarjs/ce/dist/style.css'
+import ConditionalLayout from '@/components/ConditionalLayout'
 import { Geist } from 'next/font/google'
 import { cn } from '@/lib/utils'
 
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <LoadingProvider>
             <AlertProvider>
-              <main>{children}</main>
+              <ConditionalLayout>{children}</ConditionalLayout>
             </AlertProvider>
           </LoadingProvider>
         </Providers>

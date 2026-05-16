@@ -35,7 +35,7 @@ export default function Header() {
 
   const open = Boolean(anchorEl)
   const menus = [
-    { label: 'Home', path: '/authenticated/homepage' },
+    { label: 'Home', path: '/' },
     {
       label: 'My course',
       path: '/authenticated/course/my-courses'
@@ -68,12 +68,13 @@ export default function Header() {
             padding: '0.5em',
             borderRadius: '2em'
           }}
-          onClick={() => router.replace('/authenticated/homepage')}
+          onClick={() => router.replace('/')}
         >
           <Box
             component='img'
             src='/images/webLogo.png'
             alt='Web logo'
+            fetchPriority='high'
             sx={{
               height: 'auto',
               width: '70%',
@@ -106,48 +107,45 @@ export default function Header() {
           />
         </Box>
       </Stack>
-      <Stack direction='row' spacing={5} alignItems='center' sx={{ display: { xs: 'none', md: 'flex' } }}>
-        {menus.map((item) => {
-          const isActive = pathname === item.path
+      {userData && (
+        <Stack direction='row' spacing={5} alignItems='center' sx={{ display: { xs: 'none', md: 'flex' } }}>
+          {menus.map((item) => {
+            const isActive = pathname === item.path
 
-          return (
-            <Typography
-              key={item.path}
-              onClick={() => router.push(item.path)}
-              sx={{
-                cursor: 'pointer',
-                color: isActive ? '#000' : '#5B5B5B',
-                fontWeight: isActive ? 600 : 400,
-                position: 'relative',
-                '&::after': isActive
-                  ? {
-                      content: '""',
-                      position: 'absolute',
-                      bottom: -4,
-                      left: 0,
-                      width: '100%',
-                      height: '2px',
-                      backgroundColor: '#000'
-                    }
-                  : {},
-                '&:hover': {
-                  opacity: 0.8
-                }
-              }}
-            >
-              {item.label}
-            </Typography>
-          )
-        })}
-      </Stack>
-
-      {/* Right: Wishlist + Profile */}
+            return (
+              <Typography
+                key={item.path}
+                onClick={() => router.push(item.path)}
+                sx={{
+                  cursor: 'pointer',
+                  color: isActive ? '#000' : '#5B5B5B',
+                  fontWeight: isActive ? 600 : 400,
+                  position: 'relative',
+                  '&::after': isActive
+                    ? {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: -4,
+                        left: 0,
+                        width: '100%',
+                        height: '2px',
+                        backgroundColor: '#000'
+                      }
+                    : {},
+                  '&:hover': {
+                    opacity: 0.8
+                  }
+                }}
+              >
+                {item.label}
+              </Typography>
+            )
+          })}
+        </Stack>
+      )}
+      {/* Right:  Profile */}
       {userData ? (
         <Stack direction='row' spacing={2} alignItems='center'>
-          <IconButton sx={{ color: '#5B5B5B' }}>
-            <FavoriteBorderIcon />
-          </IconButton>
-
           <Box
             onClick={handleClick}
             sx={{
@@ -164,7 +162,7 @@ export default function Header() {
             }}
           >
             <Avatar sx={{ bgcolor: '#151312', width: 30, height: 30 }} />
-            <Typography>{userData?.firstName || 'User'}</Typography>
+            <Typography>{userData?.first_name || 'User'}</Typography>
           </Box>
 
           <Menu
@@ -204,7 +202,7 @@ export default function Header() {
               onClick={async () => {
                 authUtils.clearAuth()
                 handleClose()
-                router.replace('/auth/login')
+                window.location.href = '/'
               }}
             >
               <ListItemIcon>
@@ -230,7 +228,7 @@ export default function Header() {
               textTransform: 'none',
               fontSize: { xs: '0.875rem', md: '1rem' },
               '&:hover': {
-                backgroundColor: '#FFC700'
+                backgroundColor: '#f6e29b'
               }
             }}
           >

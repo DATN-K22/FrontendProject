@@ -39,9 +39,7 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
 
   return (
     <ChatWidgetProvider userId={String(auth.userData?.id ?? auth.userData?._id ?? '') || null}>
-      <Header />
       <main>{children}</main>
-      <Footer />
       <ChatWidget />
     </ChatWidgetProvider>
   )

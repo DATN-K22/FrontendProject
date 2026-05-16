@@ -7,4 +7,4 @@ const nextConfig: NextConfig = {
   compress: true
 }
 
-module.exports = nextConfig;
+module.exports = nextConfig

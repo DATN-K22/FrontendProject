@@ -159,16 +159,6 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
             sx={fieldSx}
           />
 
-          {!isEdit && (
-            <TextField
-              label='Owner ID *'
-              value={form.owner_id}
-              onChange={(e) => set('owner_id', e.target.value)}
-              fullWidth
-              sx={fieldSx}
-            />
-          )}
-
           {error && (
             <Box sx={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', px: 2, py: 1.5 }}>
               <Typography sx={{ fontSize: '0.8rem', color: '#dc2626' }}>{error}</Typography>

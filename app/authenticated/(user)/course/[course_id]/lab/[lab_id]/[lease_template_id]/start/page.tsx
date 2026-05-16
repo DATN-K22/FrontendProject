@@ -103,7 +103,7 @@ export default function LabDetail() {
   useEffect(() => {
     const fetchLease = async () => {
       try {
-        const res = await api.get(`/labs/leases/${leaseId}`)
+        const res = await api.get(`/courses/lab/lease/${leaseId}`)
         const data: LeaseData = res.data.data
         setLeaseData(data)
         setLoadingLease(false)
@@ -173,7 +173,7 @@ export default function LabDetail() {
       }
 
       try {
-        await api.post(`/labs/leases/${leaseId}/terminate`, null, {
+        await api.post(`/courses/lab/leases/${leaseId}/terminate`, null, {
           params: { status }
         })
       } catch (error) {
@@ -229,7 +229,7 @@ export default function LabDetail() {
 
     try {
       setLoadingConsoleUrl(true)
-      const res = await api.get(`/labs/leases/${leaseId}/console-url`)
+      const res = await api.post(`/courses/lab/console-url`, leaseData)
       const consoleUrl = res.data?.data?.consoleUrl as string | undefined
 
       if (consoleUrl) {
