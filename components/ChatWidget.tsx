@@ -687,6 +687,7 @@ export default function ChatWidget({
   const lastRestoredContextRef = useRef<string | null>(null);
   const lastSyncedSessionStateRef = useRef<string | null>(null);
   const requestInFlightRef = useRef(false);
+  const prevCourseIdRef = useRef<string | null | undefined>(undefined); // undefined = not yet initialized
 
   const isOpen = chatWidget?.store.isOpen ?? localOpen;
   const contextId = chatWidget?.store.contextId ?? localContextId;
@@ -937,6 +938,28 @@ export default function ChatWidget({
         setIsHistoryLoading(false);
       });
   }, [isOpen, showHistoryPanel, fetchSessionList]);
+
+  // Reset context when navigating to a different course so that the widget
+  // doesn't carry over a previous course's session.
+  useEffect(() => {
+    // Skip the very first render (prevCourseIdRef is still undefined).
+    if (prevCourseIdRef.current === undefined) {
+      prevCourseIdRef.current = courseIdFromContext;
+      return;
+    }
+
+    if (prevCourseIdRef.current !== courseIdFromContext) {
+      prevCourseIdRef.current = courseIdFromContext;
+      // Clear messages and reset the persisted contextId so a fresh session
+      // is started for the new course/page.
+      setMessages([]);
+      setStatus("ready");
+      setComposerText("");
+      lastRestoredContextRef.current = null;
+      lastSyncedSessionStateRef.current = null;
+      saveContext(null, null);
+    }
+  }, [courseIdFromContext, saveContext]);
 
   useEffect(() => {
     if (!isOpen || !contextId || messages.length > 0) return;
