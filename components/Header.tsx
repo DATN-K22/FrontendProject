@@ -23,13 +23,15 @@ import {
   List,
   ListItem,
   ListItemAvatar,
-  CircularProgress
+  CircularProgress,
+  Tooltip
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import SettingsIcon from '@mui/icons-material/Settings'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import LogoutIcon from '@mui/icons-material/Logout'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { usePathname, useRouter } from 'next/navigation'
 import { authUtils } from '@/utils/auth'
 import { useEffect, useState, useRef } from 'react'
@@ -191,10 +193,29 @@ export default function Header() {
         >
           {/* Left Side: Filters */}
           <Box sx={{ width: { xs: '100%', md: 250 }, p: 2, borderRight: { md: '1px solid #eee' }, borderBottom: { xs: '1px solid #eee', md: 'none' }, overflowY: 'auto', flexShrink: 0 }}>
-            <Typography variant="subtitle1" fontWeight={600} mb={1}>Bộ lọc</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="subtitle1" fontWeight={600}>Filters</Typography>
+              <Tooltip title="Open in full page" arrow>
+                <IconButton 
+                  size="small" 
+                  onClick={() => {
+                    setSearchAnchorEl(null)
+                    const params = new URLSearchParams()
+                    if (filters.q) params.set('q', filters.q)
+                    if (filters.levels && filters.levels.length > 0) params.set('levels', filters.levels.join(','))
+                    if (filters.isPaid !== undefined) params.set('isPaid', String(filters.isPaid))
+                    if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice))
+                    if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice))
+                    router.push(`/search?${params.toString()}`)
+                  }}
+                >
+                  <OpenInNewIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
             <Divider sx={{ mb: 2 }} />
 
-            <Typography variant="subtitle2" fontWeight={600} mb={1}>Giá</Typography>
+            <Typography variant="subtitle2" fontWeight={600} mb={1}>Price</Typography>
             <RadioGroup
               value={filters.isPaid === undefined ? 'all' : filters.isPaid ? 'paid' : 'free'}
               onChange={(e) => {
@@ -205,16 +226,16 @@ export default function Header() {
                 }))
               }}
             >
-              <FormControlLabel value="all" control={<Radio size="small" />} label="Tất cả" />
+              <FormControlLabel value="all" control={<Radio size="small" />} label="All" />
               <FormControlLabel 
                 value="paid" 
                 control={<Radio size="small" />} 
-                label={`Trả phí ${searchResults?.facets?.priceTypes?.PAID !== undefined ? `(${searchResults.facets.priceTypes.PAID})` : ''}`} 
+                label={`Paid ${searchResults?.facets?.priceTypes?.PAID !== undefined ? `(${searchResults.facets.priceTypes.PAID})` : ''}`} 
               />
               <FormControlLabel 
                 value="free" 
                 control={<Radio size="small" />} 
-                label={`Miễn phí ${searchResults?.facets?.priceTypes?.FREE !== undefined ? `(${searchResults.facets.priceTypes.FREE})` : ''}`} 
+                label={`Free ${searchResults?.facets?.priceTypes?.FREE !== undefined ? `(${searchResults.facets.priceTypes.FREE})` : ''}`} 
               />
             </RadioGroup>
 
@@ -230,22 +251,22 @@ export default function Header() {
                  max={500}
                  step={0.01}
                  valueLabelDisplay="auto"
-                 valueLabelFormat={(val) => `${val.toFixed(2)}đ`}
+                 valueLabelFormat={(val) => `$${val.toFixed(2)}`}
                  size="small"
                />
                <Typography variant="caption" color="text.secondary">
-                 {(filters.minPrice ?? 0).toFixed(2)}đ - {(filters.maxPrice ?? 500).toFixed(2)}đ
+                 ${(filters.minPrice ?? 0).toFixed(2)} - ${(filters.maxPrice ?? 500).toFixed(2)}
                </Typography>
             </Box>
 
             <Divider sx={{ mb: 2 }} />
 
-            <Typography variant="subtitle2" fontWeight={600} mb={1}>Trình độ</Typography>
+            <Typography variant="subtitle2" fontWeight={600} mb={1}>Difficulty</Typography>
             <FormGroup>
                {[
-                 { value: 'Beginner', label: 'Cơ bản' },
-                 { value: 'Intermediate', label: 'Trung cấp' },
-                 { value: 'Advanced', label: 'Nâng cao' }
+                 { value: 'Beginner', label: 'Beginner' },
+                 { value: 'Intermediate', label: 'Intermediate' },
+                 { value: 'Advanced', label: 'Advanced' }
                ].map(level => {
                  const count = searchResults?.facets?.levels?.[level.value] || 0
                  return (
@@ -279,7 +300,7 @@ export default function Header() {
                  <CircularProgress />
                </Box>
              ) : searchResults?.data?.length === 0 ? (
-               <Typography color="text.secondary" textAlign="center" mt={4}>Không tìm thấy kết quả nào</Typography>
+               <Typography color="text.secondary" textAlign="center" mt={4}>No results found</Typography>
              ) : (
                <List sx={{ p: 0 }}>
                  {searchResults?.data?.map(course => (
@@ -306,13 +327,9 @@ export default function Header() {
                        }
                        secondary={
                          <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
-                           <span>{course.user?.name || 'Instructor'} • {
-                             course.course_level === 'Beginner' ? 'Cơ bản' : 
-                             course.course_level === 'Intermediate' ? 'Trung cấp' : 
-                             course.course_level === 'Advanced' ? 'Nâng cao' : course.course_level
-                           }</span>
+                           <span>{course.user?.name || 'Instructor'} • {course.course_level}</span>
                            <span style={{ fontWeight: 600, color: '#d32f2f', marginTop: '2px' }}>
-                             {Number(course.price) === 0 ? 'Miễn phí' : `${Number(course.price).toLocaleString()}đ`}
+                             {Number(course.price) === 0 ? 'Free' : `$${Number(course.price).toLocaleString()}`}
                            </span>
                          </Typography>
                        }
