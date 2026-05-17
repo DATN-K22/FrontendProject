@@ -40,7 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useChatWidget } from "@/context/ChatWidgetContext";
-import api from "@/api/api"; 
+import api from "@/api/api";
 import { getAllTimezones, getTimezone } from "countries-and-timezones";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -106,15 +106,15 @@ function normalizeProposedChanges(value: unknown): ScheduleChange[] {
 type Part =
   | { kind: "text"; text: string }
   | {
-      kind: "data";
-      data: {
-        id: string;
-        name: string;
-        args?: Record<string, unknown>;
-        response?: Record<string, unknown>;
-      };
-      metadata: { adk_type: string; adk_is_long_running?: boolean };
+    kind: "data";
+    data: {
+      id: string;
+      name: string;
+      args?: Record<string, unknown>;
+      response?: Record<string, unknown>;
     };
+    metadata: { adk_type: string; adk_is_long_running?: boolean };
+  };
 
 interface A2AMessage {
   kind: "message";
@@ -562,7 +562,7 @@ function parseResponse(raw: OrchestratorResponse): ParsedResponse {
       .filter((p) => p.kind === "text")
       .map((p) => p.text.trim())
       .filter(Boolean);
-    
+
     return allTextParts.at(-1) ?? "";
   })();
 
@@ -975,6 +975,11 @@ export default function ChatWidget({
         },
       };
 
+      console.log('[postToAgent] sending adk_state:', {
+        course_id: courseIdFromContext ?? "general",
+        timezone: selectedTimezone,
+      });
+
       try {
         const res = await api.post(endpoint, payload, {
           headers: {
@@ -1196,11 +1201,10 @@ export default function ChatWidget({
                         <div className="space-y-1">
                           {rows.map((item) => (
                             <button
-                              className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
-                                item.sessionId === contextId
+                              className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${item.sessionId === contextId
                                   ? "border-primary/40 bg-muted"
                                   : "hover:bg-muted/40"
-                              }`}
+                                }`}
                               key={item.sessionId}
                               onClick={() => void loadConversation(item)}
                               type="button"
