@@ -939,10 +939,12 @@ export default function ChatWidget({
       });
   }, [isOpen, showHistoryPanel, fetchSessionList]);
 
-  // Reset context when navigating to a different course so that the widget
-  // doesn't carry over a previous course's session.
+  // When the user navigates to a different course, invalidate the sync key so
+  // Effect 2 (session-state sync) picks up courseChanged = true and POSTs the
+  // new course_id to the server for the existing session. The session itself
+  // (contextId + messages) is intentionally preserved (option A).
   useEffect(() => {
-    // Skip the very first render (prevCourseIdRef is still undefined).
+    // Skip the very first render — only initialise the ref.
     if (prevCourseIdRef.current === undefined) {
       prevCourseIdRef.current = courseIdFromContext;
       return;
@@ -950,16 +952,11 @@ export default function ChatWidget({
 
     if (prevCourseIdRef.current !== courseIdFromContext) {
       prevCourseIdRef.current = courseIdFromContext;
-      // Clear messages and reset the persisted contextId so a fresh session
-      // is started for the new course/page.
-      setMessages([]);
-      setStatus("ready");
-      setComposerText("");
-      lastRestoredContextRef.current = null;
+      // Nullify the sync key; Effect 2 will fire because lastSyncedSessionStateRef
+      // no longer matches the new (contextId : timezone : courseId) triple.
       lastSyncedSessionStateRef.current = null;
-      saveContext(null, null);
     }
-  }, [courseIdFromContext, saveContext]);
+  }, [courseIdFromContext]);
 
   useEffect(() => {
     if (!isOpen || !contextId || messages.length > 0) return;
