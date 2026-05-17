@@ -667,7 +667,7 @@ type ChatWidgetProps = {
 
 export default function ChatWidget({
   endpoint = process.env.NEXT_PUBLIC_ORCHESTRATOR_ENDPOINT || "orchestrator",
-  tenantId = process.env.NEXT_PUBLIC_TENANT_ID || "course_21",
+  tenantId = "",
 }: ChatWidgetProps) {
   const chatWidget = useChatWidget();
 
