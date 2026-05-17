@@ -33,9 +33,9 @@ const useChatStore = create<ChatWidgetStore>()(
       contextId: null as string | null,
       selectedTimezone: getBrowserTimezone(),
 
-      open:  () => set({ isOpen: true }),
+      open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
-      setContextId: (id: string | null) => 
+      setContextId: (id: string | null) =>
         set({ contextId: id }),
       setSelectedTimezone: (timezone: string) =>
         set({ selectedTimezone: timezone }),
@@ -62,9 +62,9 @@ interface ChatWidgetContextValue {
 }
 
 interface PageContext {
-    type: 'lesson' | 'course' | 'general'
-    courseId?: string
-    lessonId?: string
+  type: 'lesson' | 'course' | 'general'
+  courseId?: string
+  lessonId?: string
 }
 
 const chatWidgetContext = createContext<ChatWidgetContextValue | undefined>(undefined)
@@ -87,49 +87,41 @@ export const useChatWidget = () => useContext(chatWidgetContext)
 // ─────────────────────────────────────────
 // Helper
 // ─────────────────────────────────────────
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const NUMERIC_ID_REGEX = /^\d+$/
+
+const isId = (segment: string) =>
+  NUMERIC_ID_REGEX.test(segment) || UUID_REGEX.test(segment)
+
 function detectPageContext(pathname: string): PageContext {
   const segments = pathname.split('/').filter(Boolean)
-  const courseSegmentIndex = segments.findIndex(
-    (segment) => segment === 'course' || segment === 'courses'
+
+  const courseIdIndex = segments.findIndex(
+    (seg, i) =>
+      isId(seg) &&
+      (segments[i - 1] === 'course' || segments[i - 1] === 'courses')
   )
 
-  if (courseSegmentIndex === -1) return { type: 'general' }
+  if (courseIdIndex === -1) return { type: 'general' }
 
-  const courseId = segments[courseSegmentIndex + 1]
-  if (!courseId) return { type: 'general' }
+  const courseId = segments[courseIdIndex]
+  const next = segments[courseIdIndex + 1]
 
-  const firstSegmentAfterCourseId = segments[courseSegmentIndex + 2]
-  if (!firstSegmentAfterCourseId) {
-    return { type: 'course', courseId }
-  }
+  if (!next) return { type: 'course', courseId }
 
-  if (
-    firstSegmentAfterCourseId === 'lesson' ||
-    firstSegmentAfterCourseId === 'lessons'
-  ) {
-    const lessonId = segments[courseSegmentIndex + 3]
-    if (lessonId) return { type: 'lesson', courseId, lessonId }
+  if (next === 'lesson' || next === 'lessons') {
+    const lessonId = segments[courseIdIndex + 2]
+    if (lessonId && isId(lessonId)) return { type: 'lesson', courseId, lessonId }
     return { type: 'course', courseId }
   }
 
   const nonLessonRouteSegments = new Set([
-    'quiz',
-    'quizzes',
-    'lab',
-    'labs',
-    'payment',
-    'overview',
-    'start',
-    'confirm',
+    'quiz', 'quizzes', 'lab', 'labs',
+    'payment', 'overview', 'start', 'confirm',
   ])
 
-  if (!nonLessonRouteSegments.has(firstSegmentAfterCourseId)) {
-    return {
-      type: 'lesson',
-      courseId,
-      lessonId: firstSegmentAfterCourseId,
-    }
-  }
+  if (isId(next)) return { type: 'lesson', courseId, lessonId: next }
+  if (!nonLessonRouteSegments.has(next)) return { type: 'lesson', courseId, lessonId: next }
 
   return { type: 'course', courseId }
 }
