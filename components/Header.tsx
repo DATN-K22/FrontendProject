@@ -27,10 +27,12 @@ export default function Header() {
   const pathname = usePathname()
   const [userData, setUserData] = useState<null | ReturnType<typeof authUtils.getAuth>['userData']>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const { userData } = authUtils.getAuth()
     setUserData(userData)
+    setIsLoading(false)
   }, [])
 
   const open = Boolean(anchorEl)
@@ -143,8 +145,9 @@ export default function Header() {
           })}
         </Stack>
       )}
-      {/* Right:  Profile */}
-      {userData ? (
+      {isLoading ? (
+        <Box sx={{ width: 120 }} />
+      ) : userData ? (
         <Stack direction='row' spacing={2} alignItems='center'>
           <Box
             onClick={handleClick}
@@ -200,7 +203,7 @@ export default function Header() {
 
             <MenuItem
               onClick={async () => {
-                authUtils.clearAuth()
+                await authUtils.clearAuth()
                 handleClose()
                 window.location.href = '/'
               }}
