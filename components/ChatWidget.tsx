@@ -205,7 +205,7 @@ const randomId = () =>
 
 const FALLBACK_WELCOME =
   "Hello! I can help with courses, schedules, and course content. What do you want to do today?";
-const SESSION_STATE_SYNC_DELAY_MS = 700;
+
 
 function isRequestCanceled(error: unknown): boolean {
   const maybeError = error as { code?: string; name?: string };
@@ -685,9 +685,7 @@ export default function ChatWidget({
   const [localSelectedTimezone, setLocalSelectedTimezone] = useState("Etc/UTC");
 
   const lastRestoredContextRef = useRef<string | null>(null);
-  const lastSyncedSessionStateRef = useRef<string | null>(null);
   const requestInFlightRef = useRef(false);
-  const prevCourseIdRef = useRef<string | null | undefined>(undefined); // undefined = not yet initialized
 
   const isOpen = chatWidget?.store.isOpen ?? localOpen;
   const contextId = chatWidget?.store.contextId ?? localContextId;
@@ -733,8 +731,6 @@ export default function ChatWidget({
     return timezoneOptions[0]?.value ?? "Etc/UTC";
   }, [timezoneOptions]);
   const selectedTimezone = chatWidget?.store.selectedTimezone ?? localSelectedTimezone;
-  const lastTimezoneSyncCandidateRef = useRef(selectedTimezone);
-  const lastCourseSyncCandidateRef = useRef(courseIdFromContext ?? "");
   const setSelectedTimezone = useCallback(
     (timezone: string) => {
       if (chatWidget) {
@@ -799,10 +795,6 @@ export default function ChatWidget({
     [endpoint]
   );
 
-  const sessionStateEndpoint = useMemo(
-    () => `${endpoint.replace(/\/$/, "")}/session_state`,
-    [endpoint]
-  );
 
   const upsertConversation = useCallback((summary: ConversationSummary) => {
     setConversationHistory((prev) => {
@@ -939,25 +931,6 @@ export default function ChatWidget({
       });
   }, [isOpen, showHistoryPanel, fetchSessionList]);
 
-  // When the user navigates to a different course, invalidate the sync key so
-  // Effect 2 (session-state sync) picks up courseChanged = true and POSTs the
-  // new course_id to the server for the existing session. The session itself
-  // (contextId + messages) is intentionally preserved (option A).
-  useEffect(() => {
-    // Skip the very first render — only initialise the ref.
-    if (prevCourseIdRef.current === undefined) {
-      prevCourseIdRef.current = courseIdFromContext;
-      return;
-    }
-
-    if (prevCourseIdRef.current !== courseIdFromContext) {
-      prevCourseIdRef.current = courseIdFromContext;
-      // Nullify the sync key; Effect 2 will fire because lastSyncedSessionStateRef
-      // no longer matches the new (contextId : timezone : courseId) triple.
-      lastSyncedSessionStateRef.current = null;
-    }
-  }, [courseIdFromContext]);
-
   useEffect(() => {
     if (!isOpen || !contextId || messages.length > 0) return;
     if (lastRestoredContextRef.current === contextId) return;
@@ -973,105 +946,13 @@ export default function ChatWidget({
     );
   }, [contextId, localTaskId, messages, upsertConversation]);
 
-  useEffect(() => {
-    const timezoneChanged = lastTimezoneSyncCandidateRef.current !== selectedTimezone;
-    const courseSyncCandidate = courseIdFromContext ?? "";
-    const courseChanged = lastCourseSyncCandidateRef.current !== courseSyncCandidate;
-    if (!contextId) {
-      // Keep this ref in sync so switching conversations alone does not trigger a state update.
-      lastTimezoneSyncCandidateRef.current = selectedTimezone;
-      lastCourseSyncCandidateRef.current = courseSyncCandidate;
-      return;
-    }
-    if (!timezoneChanged && !courseChanged) return;
-
-    lastTimezoneSyncCandidateRef.current = selectedTimezone;
-    lastCourseSyncCandidateRef.current = courseSyncCandidate;
-
-    const syncKey = `${contextId}:${selectedTimezone}:${courseIdFromContext ?? ""}`;
-    if (lastSyncedSessionStateRef.current === syncKey) return;
-
-    let canceled = false;
-
-    const payload: {
-      session_id: string;
-      timezone: string;
-      course_id?: string;
-    } = {
-      session_id: contextId,
-      timezone: selectedTimezone,
-      ...(courseIdFromContext ? { course_id: courseIdFromContext } : {course_id: "general"}),
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      void api
-        .post(sessionStateEndpoint, payload, {
-          headers: {
-            "x-tenant-id": tenantIdToUse,
-            ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
-          },
-        })
-        .then(() => {
-          if (canceled) return;
-          lastSyncedSessionStateRef.current = syncKey;
-        })
-        .catch(() => {
-          // Keep chat usable if session-state sync fails.
-        });
-    }, SESSION_STATE_SYNC_DELAY_MS);
-
-    return () => {
-      canceled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [chatWidget?.userId, contextId, courseIdFromContext, selectedTimezone, sessionStateEndpoint, tenantIdToUse]);
-
   // Core fetch — shared by sendMessage and sendApproval
   const postToAgent = useCallback(
     async (text: string, taskId?: string | null, extraParts?: Part[]): Promise<ParsedResponse> => {
       const controller = new AbortController();
       setAbortController(controller);
 
-      const isFirstMessageInSession = !contextId && !taskId;
-      const firstMessageConversationTitle = text.length > 54 ? `${text.slice(0, 54)}...` : text;
-      let initialContextId = contextId ?? null;
-
-      if (isFirstMessageInSession) {
-        const sessionStatePayload: {
-          conversation_title: string;
-          timezone: string;
-          course_id?: string;
-        } = {
-          conversation_title: firstMessageConversationTitle,
-          timezone: selectedTimezone,
-          ...(courseIdFromContext ? { course_id: courseIdFromContext } : {course_id: "general"}),
-        };
-
-        try {
-          const stateRes = await api.post(sessionStateEndpoint, sessionStatePayload, {
-            headers: {
-              "x-tenant-id": tenantIdToUse,
-              ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
-            },
-            signal: controller.signal,
-          });
-
-          const sessionIdFromState = getSessionIdFromSessionStateResponse(stateRes.data);
-          if (sessionIdFromState) {
-            console.debug("Initialized new session with ID:", sessionIdFromState);
-            initialContextId = sessionIdFromState;
-
-            // Prevent the delayed auto-sync effect from re-sending the same state
-            // for the newly created session.
-            lastSyncedSessionStateRef.current = `${sessionIdFromState}:${selectedTimezone}:${courseIdFromContext ?? ""}`;
-          }
-        } catch (error) {
-          if (isRequestCanceled(error)) {
-            throw error;
-          }
-          // Keep chat usable even if pre-message state sync fails.
-        }
-      }
+      const initialContextId = contextId ?? null;
 
       const payload = {
         jsonrpc: "2.0",
@@ -1084,6 +965,12 @@ export default function ChatWidget({
             messageId: randomId(),
             ...(initialContextId ? { contextId: initialContextId } : {}),
             ...(taskId ? { taskId } : {}),   // required for HITL resume
+          },
+          metadata: {
+            adk_state: {
+              timezone: selectedTimezone,
+              course_id: courseIdFromContext ?? "general",
+            },
           },
         },
       };
@@ -1101,7 +988,7 @@ export default function ChatWidget({
         setAbortController((prev) => (prev === controller ? null : prev));
       }
     },
-    [chatWidget?.userId, contextId, courseIdFromContext, endpoint, selectedTimezone, sessionStateEndpoint, tenantIdToUse]
+    [contextId, courseIdFromContext, endpoint, selectedTimezone, tenantIdToUse]
   );
 
   const handleResponse = useCallback(
