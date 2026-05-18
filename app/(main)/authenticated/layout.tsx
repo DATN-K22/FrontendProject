@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
-import { ChatWidgetProvider } from '@/context/ChatWidgetContext'
 import { authUtils } from '@/utils/auth'
-import ChatWidget from '@/components/ChatWidget'
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -37,10 +33,5 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
 
   if (!auth.token || !auth.userData) return null
 
-  return (
-    <ChatWidgetProvider userId={String(auth.userData?.id ?? auth.userData?._id ?? '') || null}>
-      <main>{children}</main>
-      <ChatWidget />
-    </ChatWidgetProvider>
-  )
+  return <main>{children}</main>
 }
