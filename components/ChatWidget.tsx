@@ -983,6 +983,7 @@ export default function ChatWidget({
           },
           signal: controller.signal,
         });
+        console.log(tenantIdToUse);
 
         return parseResponse(res.data as OrchestratorResponse);
       } finally {
