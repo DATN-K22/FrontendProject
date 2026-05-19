@@ -54,7 +54,7 @@ type LeaseData = {
 }
 
 export default function LabDetail() {
-  const { lab_id } = useParams()
+  const { lab_id, course_id, lease_template_id } = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
   const leaseId = searchParams.get('leaseId')
@@ -157,6 +157,8 @@ export default function LabDetail() {
       })
       if (pollingRef.current) clearInterval(pollingRef.current)
       if (countdownRef.current) clearInterval(countdownRef.current)
+
+      router.push(`/authenticated/course/${course_id}/lab/${lab_id}/${lease_template_id}/overview`)
     } catch (error) {
       console.error('Error terminating lab:', error)
     } finally {
