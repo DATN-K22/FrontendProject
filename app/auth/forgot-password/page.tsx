@@ -1,7 +1,7 @@
 'use client'
 
 import api from '@/api/api'
-import { EyeIcon } from '@/app/authenticated/(user)/[user_id]/profile/page'
+import { EyeIcon } from '@/app/(main)/authenticated/(user)/[user_id]/profile/page'
 import {
   Alert,
   Box,

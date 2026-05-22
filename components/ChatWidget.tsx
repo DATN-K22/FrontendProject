@@ -71,6 +71,8 @@ interface ScheduleChange {
 
 interface PendingApproval {
   functionCallId: string;
+  functionName?: string;
+  approvalId?: string;
   proposedChanges: ScheduleChange[];
 }
 
@@ -203,6 +205,7 @@ const randomId = () =>
 
 const FALLBACK_WELCOME =
   "Hello! I can help with courses, schedules, and course content. What do you want to do today?";
+const SESSION_STATE_SYNC_DELAY_MS = 700;
 
 function isRequestCanceled(error: unknown): boolean {
   const maybeError = error as { code?: string; name?: string };
@@ -248,10 +251,53 @@ function parsePendingApproval(value: unknown): PendingApproval | undefined {
 
   if (!functionCallId) return undefined;
 
+  const approvalId =
+    typeof value.approvalId === "string"
+      ? value.approvalId
+      : typeof value.approval_id === "string"
+        ? value.approval_id
+        : undefined;
+
+  const functionName =
+    typeof value.functionName === "string"
+      ? value.functionName
+      : typeof value.function_name === "string"
+        ? value.function_name
+        : undefined;
+
   return {
     functionCallId,
+    ...(functionName ? { functionName } : {}),
+    ...(approvalId ? { approvalId } : {}),
     proposedChanges: normalizeProposedChanges(value.proposed_changes),
   };
+}
+
+function extractApprovalIdFromParts(parts: Part[]): string | undefined {
+  for (const part of parts) {
+    if (part.kind !== "data") continue;
+    if (part.data.name !== "request_schedule_approval") continue;
+    if (!isRecord(part.data.response)) continue;
+
+    const response = part.data.response;
+    const approvalId =
+      typeof response.approval_id === "string"
+        ? response.approval_id
+        : typeof response.approvalId === "string"
+          ? response.approvalId
+          : undefined;
+
+    if (approvalId) return approvalId;
+  }
+
+  const text = parts
+    .filter((part): part is { kind: "text"; text: string } => part.kind === "text")
+    .map((part) => part.text)
+    .join("\n");
+  const textMatch = text.match(/approval\s*id\s*:\s*([a-z0-9-]+)/i);
+  if (textMatch?.[1]) return textMatch[1];
+
+  return undefined;
 }
 
 interface ParsedHistoryPayload {
@@ -270,7 +316,7 @@ function parseHistoryPayload(payload: unknown): ParsedHistoryPayload {
   let latestTaskId: string | null = null;
   let latestUpdatedAt: string | undefined;
 
-  const messages = history
+  const rawMessages = history
     .filter((entry): entry is Record<string, unknown> => isRecord(entry))
     .map((entry) => {
       const role =
@@ -325,6 +371,18 @@ function parseHistoryPayload(payload: unknown): ParsedHistoryPayload {
     })
     .filter((msg): msg is ChatMessage => !!msg);
 
+  // Filter duplicate assistant messages caused by ADK sub-agent events
+  // leaking into the root session — keep only the last assistant message
+  // in each consecutive assistant block (root agent's final response).
+  const messages = rawMessages.filter((msg, index, arr) => {
+    if (msg.role !== "assistant") return true;
+    // If this assistant message has a pending approval, always keep it
+    if (msg.pendingApproval) return true;
+    // Skip if the next message is also an assistant (this is a sub-agent intermediate response)
+    const next = arr[index + 1];
+    return !(next && next.role === "assistant");
+  });
+
   return {
     sessionId,
     contextId: latestContextId,
@@ -333,7 +391,6 @@ function parseHistoryPayload(payload: unknown): ParsedHistoryPayload {
     messages,
   };
 }
-
 function getHistoryArray(payload: unknown): unknown[] {
   if (Array.isArray(payload)) return payload;
   if (!isRecord(payload)) return [];
@@ -369,6 +426,25 @@ function getPossibleConversationList(payload: unknown): unknown[] {
 function getSessionId(value: Record<string, unknown>): string | null {
   const raw = value.session_id ?? value.sessionId ?? value.context_id ?? value.contextId ?? value.id;
   return typeof raw === "string" && raw.trim() ? raw : null;
+}
+
+function getSessionIdFromSessionStateResponse(payload: unknown): string | null {
+  if (!isRecord(payload)) return null;
+
+  const direct = getSessionId(payload);
+  if (direct) return direct;
+
+  if (isRecord(payload.data)) {
+    const fromData = getSessionId(payload.data);
+    if (fromData) return fromData;
+  }
+
+  if (isRecord(payload.result)) {
+    const fromResult = getSessionId(payload.result);
+    if (fromResult) return fromResult;
+  }
+
+  return null;
 }
 
 function buildSummaryFromMessages(
@@ -479,22 +555,28 @@ function parseResponse(raw: OrchestratorResponse): ParsedResponse {
 
   const result = raw.result;
 
-  // 1. Extract agent text — prefer artifacts, fall back to last history text
-  const artifactText =
-    result?.artifacts
-      ?.flatMap((a) => a.parts)
+  // Lấy text part cuối cùng trong toàn bộ artifacts
+  const artifactText = (() => {
+    const allTextParts = (result?.artifacts ?? [])
+      .flatMap((a) => a.parts)
       .filter((p) => p.kind === "text")
       .map((p) => p.text.trim())
-      .filter(Boolean)
-      .join("\n\n") ?? "";
+      .filter(Boolean);
+    
+    return allTextParts.at(-1) ?? "";
+  })();
 
-  const historyText = [...(result?.history ?? [])]
-    .reverse()
-    .find((m) => m.role === "agent" && m.parts.some((p) => p.kind === "text"))
-    ?.parts.filter((p): p is { kind: "text"; text: string } => p.kind === "text")
-    .map((p) => p.text.trim())
-    .filter(Boolean)
-    .join("\n\n") ?? "";
+  // Lấy text part cuối cùng trong toàn bộ history agent messages
+  const historyText = (() => {
+    const allTextParts = (result?.history ?? [])
+      .filter((m) => m.role === "agent")
+      .flatMap((m) => m.parts)
+      .filter((p): p is { kind: "text"; text: string } => p.kind === "text")
+      .map((p) => p.text.trim())
+      .filter(Boolean);
+
+    return allTextParts.at(-1) ?? "";
+  })();
 
   const agentText = artifactText || historyText;
 
@@ -507,8 +589,11 @@ function parseResponse(raw: OrchestratorResponse): ParsedResponse {
     );
     if (suspendedPart && "args" in suspendedPart.data) {
       const args = suspendedPart.data.args as { proposed_changes?: unknown };
+      const approvalId = extractApprovalIdFromParts(result.status.message.parts);
       pendingApproval = {
         functionCallId: suspendedPart.data.id,
+        functionName: suspendedPart.data.name,
+        ...(approvalId ? { approvalId } : {}),
         proposedChanges: normalizeProposedChanges(args?.proposed_changes),
       };
     }
@@ -582,7 +667,7 @@ type ChatWidgetProps = {
 
 export default function ChatWidget({
   endpoint = process.env.NEXT_PUBLIC_ORCHESTRATOR_ENDPOINT || "orchestrator",
-  tenantId = process.env.NEXT_PUBLIC_TENANT_ID || "course_21",
+  tenantId = "",
 }: ChatWidgetProps) {
   const chatWidget = useChatWidget();
 
@@ -601,6 +686,7 @@ export default function ChatWidget({
 
   const lastRestoredContextRef = useRef<string | null>(null);
   const lastSyncedSessionStateRef = useRef<string | null>(null);
+  const requestInFlightRef = useRef(false);
 
   const isOpen = chatWidget?.store.isOpen ?? localOpen;
   const contextId = chatWidget?.store.contextId ?? localContextId;
@@ -647,6 +733,7 @@ export default function ChatWidget({
   }, [timezoneOptions]);
   const selectedTimezone = chatWidget?.store.selectedTimezone ?? localSelectedTimezone;
   const lastTimezoneSyncCandidateRef = useRef(selectedTimezone);
+  const lastCourseSyncCandidateRef = useRef(courseIdFromContext ?? "");
   const setSelectedTimezone = useCallback(
     (timezone: string) => {
       if (chatWidget) {
@@ -868,14 +955,18 @@ export default function ChatWidget({
 
   useEffect(() => {
     const timezoneChanged = lastTimezoneSyncCandidateRef.current !== selectedTimezone;
+    const courseSyncCandidate = courseIdFromContext ?? "";
+    const courseChanged = lastCourseSyncCandidateRef.current !== courseSyncCandidate;
     if (!contextId) {
       // Keep this ref in sync so switching conversations alone does not trigger a state update.
       lastTimezoneSyncCandidateRef.current = selectedTimezone;
+      lastCourseSyncCandidateRef.current = courseSyncCandidate;
       return;
     }
-    if (!timezoneChanged) return;
+    if (!timezoneChanged && !courseChanged) return;
 
     lastTimezoneSyncCandidateRef.current = selectedTimezone;
+    lastCourseSyncCandidateRef.current = courseSyncCandidate;
 
     const syncKey = `${contextId}:${selectedTimezone}:${courseIdFromContext ?? ""}`;
     if (lastSyncedSessionStateRef.current === syncKey) return;
@@ -889,43 +980,78 @@ export default function ChatWidget({
     } = {
       session_id: contextId,
       timezone: selectedTimezone,
-      ...(courseIdFromContext ? { course_id: courseIdFromContext } : {}),
+      ...(courseIdFromContext ? { course_id: courseIdFromContext } : {course_id: "general"}),
     };
 
-    void api
-      .post(sessionStateEndpoint, payload, {
-        headers: {
-          "x-tenant-id": tenantIdToUse,
-          ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
-        },
-      })
-      .then(() => {
-        if (canceled) return;
-        lastSyncedSessionStateRef.current = syncKey;
-      })
-      .catch(() => {
-        // Keep chat usable if session-state sync fails.
-      });
+    const timeoutId = window.setTimeout(() => {
+      void api
+        .post(sessionStateEndpoint, payload, {
+          headers: {
+            "x-tenant-id": tenantIdToUse,
+            ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
+          },
+        })
+        .then(() => {
+          if (canceled) return;
+          lastSyncedSessionStateRef.current = syncKey;
+        })
+        .catch(() => {
+          // Keep chat usable if session-state sync fails.
+        });
+    }, SESSION_STATE_SYNC_DELAY_MS);
 
     return () => {
       canceled = true;
+      window.clearTimeout(timeoutId);
     };
   }, [chatWidget?.userId, contextId, courseIdFromContext, selectedTimezone, sessionStateEndpoint, tenantIdToUse]);
 
   // Core fetch — shared by sendMessage and sendApproval
   const postToAgent = useCallback(
-    async (text: string, taskId?: string | null): Promise<ParsedResponse> => {
+    async (text: string, taskId?: string | null, extraParts?: Part[]): Promise<ParsedResponse> => {
       const controller = new AbortController();
       setAbortController(controller);
 
-      const shouldSetConversationTitle = !contextId && !taskId;
-      const stateDelta = shouldSetConversationTitle
-        ? {
-            conversation_title: text.length > 54 ? `${text.slice(0, 54)}...` : text,
-            timezone: selectedTimezone,
-            ...(courseIdFromContext ? { course_id: courseIdFromContext } : {}),
+      const isFirstMessageInSession = !contextId && !taskId;
+      const firstMessageConversationTitle = text.length > 54 ? `${text.slice(0, 54)}...` : text;
+      let initialContextId = contextId ?? null;
+
+      if (isFirstMessageInSession) {
+        const sessionStatePayload: {
+          conversation_title: string;
+          timezone: string;
+          course_id?: string;
+        } = {
+          conversation_title: firstMessageConversationTitle,
+          timezone: selectedTimezone,
+          ...(courseIdFromContext ? { course_id: courseIdFromContext } : {course_id: "general"}),
+        };
+
+        try {
+          const stateRes = await api.post(sessionStateEndpoint, sessionStatePayload, {
+            headers: {
+              "x-tenant-id": tenantIdToUse,
+              ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
+            },
+            signal: controller.signal,
+          });
+
+          const sessionIdFromState = getSessionIdFromSessionStateResponse(stateRes.data);
+          if (sessionIdFromState) {
+            console.debug("Initialized new session with ID:", sessionIdFromState);
+            initialContextId = sessionIdFromState;
+
+            // Prevent the delayed auto-sync effect from re-sending the same state
+            // for the newly created session.
+            lastSyncedSessionStateRef.current = `${sessionIdFromState}:${selectedTimezone}:${courseIdFromContext ?? ""}`;
           }
-        : null;
+        } catch (error) {
+          if (isRequestCanceled(error)) {
+            throw error;
+          }
+          // Keep chat usable even if pre-message state sync fails.
+        }
+      }
 
       const payload = {
         jsonrpc: "2.0",
@@ -934,12 +1060,11 @@ export default function ChatWidget({
         params: {
           message: {
             role: "user",
-            parts: [{ kind: "text", text }],
+            parts: [{ kind: "text", text }, ...(extraParts || [])],
             messageId: randomId(),
-            ...(contextId ? { contextId } : {}),
+            ...(initialContextId ? { contextId: initialContextId } : {}),
             ...(taskId ? { taskId } : {}),   // required for HITL resume
           },
-          ...(stateDelta ? { state_delta: stateDelta } : {}),
         },
       };
 
@@ -951,39 +1076,7 @@ export default function ChatWidget({
           signal: controller.signal,
         });
 
-        const parsed = parseResponse(res.data as OrchestratorResponse);
-
-        if (shouldSetConversationTitle && parsed.contextId && stateDelta) {
-          const sessionStatePayload: {
-            session_id: string;
-            conversation_title: string;
-            timezone?: string;
-            course_id?: string;
-          } = {
-            session_id: parsed.contextId,
-            conversation_title: stateDelta.conversation_title,
-            timezone: stateDelta.timezone,
-            ...(courseIdFromContext ? { course_id: courseIdFromContext } : {}),
-          };
-
-          try {
-            await api.post(sessionStateEndpoint, sessionStatePayload, {
-              headers: {
-                "x-tenant-id": tenantIdToUse,
-                ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
-              },
-              signal: controller.signal,
-            });
-
-            // Prevent the auto-sync effect from sending a duplicate state update
-            // right after a brand-new session is created by the first message.
-            lastSyncedSessionStateRef.current = `${parsed.contextId}:${stateDelta.timezone}:${courseIdFromContext ?? ""}`;
-          } catch {
-            // Keep chat response successful even if session-state sync fails.
-          }
-        }
-
-        return parsed;
+        return parseResponse(res.data as OrchestratorResponse);
       } finally {
         setAbortController((prev) => (prev === controller ? null : prev));
       }
@@ -1011,7 +1104,9 @@ export default function ChatWidget({
 
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!text.trim() || !canSubmit) return;
+      if (!text.trim() || !canSubmit || requestInFlightRef.current) return;
+
+      requestInFlightRef.current = true;
 
       setMessages((prev) => [...prev, { id: randomId(), role: "user", text }]);
       setStatus("submitted");
@@ -1036,6 +1131,8 @@ export default function ChatWidget({
           { id: randomId(), role: "assistant", text: "Could not reach the AI endpoint. Please try again." },
         ]);
         setStatus("error");
+      } finally {
+        requestInFlightRef.current = false;
       }
     },
     [canSubmit, postToAgent, handleResponse]
@@ -1043,8 +1140,41 @@ export default function ChatWidget({
 
   const sendApproval = useCallback(
     async (decision: "approved" | "rejected") => {
-      if (!canSubmit) return;
+      if (!canSubmit || requestInFlightRef.current) return;
+
+      requestInFlightRef.current = true;
       setStatus("submitted");
+
+      const activePendingApproval = [...messages]
+        .reverse()
+        .find(
+          (
+            m
+          ): m is Extract<ChatMessage, { role: "assistant"; pendingApproval?: PendingApproval }> =>
+            m.role === "assistant" && !!m.pendingApproval
+        )?.pendingApproval;
+      const decisionText = activePendingApproval?.approvalId
+        ? `${decision} ${activePendingApproval.approvalId}`
+        : decision;
+
+      let extraParts: Part[] | undefined = undefined;
+      if (activePendingApproval?.functionCallId) {
+        extraParts = [
+          {
+            kind: "data",
+            metadata: {
+              adk_type: "function_response"
+            },
+            data: {
+              id: activePendingApproval.functionCallId,
+              name: activePendingApproval.functionName || "request_schedule_approval",
+              response: {
+                result: decisionText
+              }
+            }
+          }
+        ];
+      }
 
       // Optimistically disable the approval card
       setMessages((prev) =>
@@ -1052,12 +1182,12 @@ export default function ChatWidget({
           m.role === "assistant" && m.pendingApproval
             ? { ...m, pendingApproval: undefined }
             : m
-        )
+        ).concat({ id: randomId(), role: "user", text: decisionText })
       );
 
       try {
         // Must send taskId to resume the suspended long-running tool
-        const parsed = await postToAgent(decision, localTaskId);
+        const parsed = await postToAgent(decisionText, localTaskId, extraParts);
         handleResponse(parsed);
       } catch {
         setMessages((prev) => [
@@ -1065,9 +1195,11 @@ export default function ChatWidget({
           { id: randomId(), role: "assistant", text: "Could not process your decision. Please try again." },
         ]);
         setStatus("error");
+      } finally {
+        requestInFlightRef.current = false;
       }
     },
-    [canSubmit, postToAgent, handleResponse, localTaskId]
+    [canSubmit, messages, postToAgent, handleResponse, localTaskId]
   );
 
   const cancelRequest = useCallback(() => {

@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import '@calendarjs/ce/dist/style.css'
-import Providers from './providers'
 import { LoadingProvider } from '@/components/Loading'
 import { AlertProvider } from '@/components/Alert'
-import ConditionalLayout from '@/components/ConditionalLayout'
 import { Geist } from 'next/font/google'
 import { cn } from '@/lib/utils'
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
+import Providers from './providers'
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
@@ -22,9 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <LoadingProvider>
-            <AlertProvider>
-              <ConditionalLayout>{children}</ConditionalLayout>
-            </AlertProvider>
+            <AlertProvider>{children}</AlertProvider>
           </LoadingProvider>
         </Providers>
       </body>

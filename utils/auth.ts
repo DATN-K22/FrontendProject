@@ -37,8 +37,9 @@ export const authUtils = {
         console.error('Error during logout:', error)
       }
     }
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('accessToken')
+
+    await localStorage.removeItem('refreshToken')
+    await localStorage.removeItem('accessToken')
     localStorage.removeItem('userData')
 
     sessionStorage.removeItem('refreshToken')

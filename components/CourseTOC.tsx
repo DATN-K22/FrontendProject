@@ -25,8 +25,8 @@ import { useParams } from 'next/navigation'
 import { useAlert } from '@/components/Alert'
 import { LessonDetail as Lesson, LessonGeneral } from '@/utils/dto/Lesson'
 import { useRouter } from 'next/navigation'
-import { useVideoProgress } from '@/app/authenticated/(user)/course/[course_id]/(lesson)/layout'
-import { getLessonIcon } from '@/app/authenticated/(user)/course/[course_id]/page'
+import { useVideoProgress } from '@/app/(main)/authenticated/(user)/course/[course_id]/(lesson)/layout'
+import { getLessonIcon } from '@/app/(main)/authenticated/(user)/course/[course_id]/page'
 
 function formatDuration(seconds?: number): string {
   if (!seconds) return '0:00'
