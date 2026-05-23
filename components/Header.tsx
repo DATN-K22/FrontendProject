@@ -44,6 +44,8 @@ export default function Header() {
   const [userData, setUserData] = useState<null | ReturnType<typeof authUtils.getAuth>['userData']>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [isSticky, setIsSticky] = useState(false)
+  const headerRef = useRef<HTMLDivElement>(null)
 
   // Search states
   const [searchAnchorEl, setSearchAnchorEl] = useState<null | HTMLElement>(null)
@@ -63,6 +65,24 @@ export default function Header() {
     const { userData } = authUtils.getAuth()
     setUserData(userData)
     setIsLoading(false)
+  }, [])
+
+  // Handle scroll event - fix header khi scroll qua kích thước của nó
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!headerRef.current) return
+
+      const currentScrollY = window.scrollY
+
+      if (currentScrollY > 2) {
+        setIsSticky(true)
+      } else {
+        setIsSticky(false)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   useEffect(() => {
@@ -108,21 +128,32 @@ export default function Header() {
 
   return (
     <Box
+      ref={headerRef}
       component='header'
       sx={{
         color: '#000000',
         px: { xs: 2, md: 6 },
-        py: 2,
+        py: isSticky ? 2 : 1,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        position: isSticky ? 'fixed' : 'static',
+        top: isSticky ? 0 : 'auto',
+        left: isSticky ? 0 : 'auto',
+        right: isSticky ? 0 : 'auto',
+        backgroundColor: '#ffffff',
+        zIndex: 100,
+        boxShadow: isSticky ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
+        width: isSticky ? '100%' : 'auto',
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
     >
       <Stack direction='row' alignItems='center' spacing={1}>
         <Button
           sx={{
             padding: '0.5em',
-            borderRadius: '2em'
+            borderRadius: '2em',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
           onClick={() => router.replace('/')}
         >
@@ -133,8 +164,9 @@ export default function Header() {
             fetchPriority='high'
             sx={{
               height: 'auto',
-              width: '70%',
-              objectFit: 'contain'
+              width: isSticky ? '80%' : '70%',
+              objectFit: 'contain',
+              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
           />
         </Button>
@@ -145,10 +177,11 @@ export default function Header() {
             bgcolor: '#E6E6E6',
             borderRadius: { xs: 1, md: 2 },
             px: { xs: 1.5, md: 2.5 },
-            py: { xs: 0.5, md: 0.7 },
+            py: isSticky ? 0.7 : { xs: 0.5, md: 0.7 },
             display: 'flex',
             alignItems: 'center',
-            width: { xs: 140, sm: 220, md: 320 }
+            width: isSticky ? { xs: 140, sm: 220, md: 320 } : { xs: 120, sm: 180, md: 280 },
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
           <SearchIcon sx={{ color: '#000', mr: 1 }} />
