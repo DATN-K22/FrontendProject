@@ -40,6 +40,7 @@ export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
   const [userData, setUserData] = useState<null | ReturnType<typeof authUtils.getAuth>['userData']>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
 
   // Search states
@@ -59,6 +60,7 @@ export default function Header() {
   useEffect(() => {
     const { userData } = authUtils.getAuth()
     setUserData(userData)
+    setIsLoading(false)
   }, [])
 
   useEffect(() => {
@@ -358,6 +360,7 @@ export default function Header() {
           </Box>
         </Popover>
       </Stack>
+
       {userData && (
         <Stack direction='row' spacing={5} alignItems='center' sx={{ display: { xs: 'none', md: 'flex' } }}>
           {menus.map((item) => {
@@ -397,8 +400,11 @@ export default function Header() {
           })}
         </Stack>
       )}
-      {/* Right:  Profile */}
-      {userData ? (
+
+      {/* Right: Profile */}
+      {isLoading ? (
+        <Box sx={{ width: 120 }} />
+      ) : userData ? (
         <Stack direction='row' spacing={2} alignItems='center'>
           <Box
             onClick={handleClick}
