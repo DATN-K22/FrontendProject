@@ -365,7 +365,7 @@ export default function Header() {
         <Stack direction='row' spacing={5} alignItems='center' sx={{ display: { xs: 'none', md: 'flex' } }}>
           {menus.map((item) => {
             const isActive = pathname === item.path
-            if (item.isTeacher && !userData.is_teacher) return null
+            if (item.isTeacher && !(userData.role === 'teacher')) return null
             return (
               <Typography
                 key={item.path}
@@ -460,7 +460,7 @@ export default function Header() {
 
             <MenuItem
               onClick={async () => {
-                authUtils.clearAuth()
+                await authUtils.clearAuth()
                 handleClose()
                 window.location.href = '/'
               }}
