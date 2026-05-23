@@ -23,13 +23,15 @@ import {
   List,
   ListItem,
   ListItemAvatar,
-  CircularProgress
+  CircularProgress,
+  Tooltip
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import SettingsIcon from '@mui/icons-material/Settings'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import LogoutIcon from '@mui/icons-material/Logout'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { usePathname, useRouter } from 'next/navigation'
 import { authUtils } from '@/utils/auth'
 import { useEffect, useState, useRef } from 'react'

@@ -145,6 +145,7 @@ export default function HomePage() {
           {categories.map((category) => (
             <Grid size={{ xs: 12, sm: 6, md: 2.4 }} key={category.id}>
               <Card
+                onClick={() => router.push(`/search?levels=${encodeURIComponent(category.title)}`)}
                 sx={{
                   height: '100%',
                   borderRadius: 3,
