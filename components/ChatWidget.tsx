@@ -40,7 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useChatWidget } from "@/context/ChatWidgetContext";
-import api from "@/api/api"; 
+import api from "@/api/api";
 import { getAllTimezones, getTimezone } from "countries-and-timezones";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -106,15 +106,15 @@ function normalizeProposedChanges(value: unknown): ScheduleChange[] {
 type Part =
   | { kind: "text"; text: string }
   | {
-      kind: "data";
-      data: {
-        id: string;
-        name: string;
-        args?: Record<string, unknown>;
-        response?: Record<string, unknown>;
-      };
-      metadata: { adk_type: string; adk_is_long_running?: boolean };
+    kind: "data";
+    data: {
+      id: string;
+      name: string;
+      args?: Record<string, unknown>;
+      response?: Record<string, unknown>;
     };
+    metadata: { adk_type: string; adk_is_long_running?: boolean };
+  };
 
 interface A2AMessage {
   kind: "message";
@@ -205,7 +205,7 @@ const randomId = () =>
 
 const FALLBACK_WELCOME =
   "Hello! I can help with courses, schedules, and course content. What do you want to do today?";
-const SESSION_STATE_SYNC_DELAY_MS = 700;
+
 
 function isRequestCanceled(error: unknown): boolean {
   const maybeError = error as { code?: string; name?: string };
@@ -562,7 +562,7 @@ function parseResponse(raw: OrchestratorResponse): ParsedResponse {
       .filter((p) => p.kind === "text")
       .map((p) => p.text.trim())
       .filter(Boolean);
-    
+
     return allTextParts.at(-1) ?? "";
   })();
 
@@ -685,7 +685,6 @@ export default function ChatWidget({
   const [localSelectedTimezone, setLocalSelectedTimezone] = useState("Etc/UTC");
 
   const lastRestoredContextRef = useRef<string | null>(null);
-  const lastSyncedSessionStateRef = useRef<string | null>(null);
   const requestInFlightRef = useRef(false);
 
   const isOpen = chatWidget?.store.isOpen ?? localOpen;
@@ -732,8 +731,6 @@ export default function ChatWidget({
     return timezoneOptions[0]?.value ?? "Etc/UTC";
   }, [timezoneOptions]);
   const selectedTimezone = chatWidget?.store.selectedTimezone ?? localSelectedTimezone;
-  const lastTimezoneSyncCandidateRef = useRef(selectedTimezone);
-  const lastCourseSyncCandidateRef = useRef(courseIdFromContext ?? "");
   const setSelectedTimezone = useCallback(
     (timezone: string) => {
       if (chatWidget) {
@@ -798,10 +795,6 @@ export default function ChatWidget({
     [endpoint]
   );
 
-  const sessionStateEndpoint = useMemo(
-    () => `${endpoint.replace(/\/$/, "")}/session_state`,
-    [endpoint]
-  );
 
   const upsertConversation = useCallback((summary: ConversationSummary) => {
     setConversationHistory((prev) => {
@@ -953,105 +946,13 @@ export default function ChatWidget({
     );
   }, [contextId, localTaskId, messages, upsertConversation]);
 
-  useEffect(() => {
-    const timezoneChanged = lastTimezoneSyncCandidateRef.current !== selectedTimezone;
-    const courseSyncCandidate = courseIdFromContext ?? "";
-    const courseChanged = lastCourseSyncCandidateRef.current !== courseSyncCandidate;
-    if (!contextId) {
-      // Keep this ref in sync so switching conversations alone does not trigger a state update.
-      lastTimezoneSyncCandidateRef.current = selectedTimezone;
-      lastCourseSyncCandidateRef.current = courseSyncCandidate;
-      return;
-    }
-    if (!timezoneChanged && !courseChanged) return;
-
-    lastTimezoneSyncCandidateRef.current = selectedTimezone;
-    lastCourseSyncCandidateRef.current = courseSyncCandidate;
-
-    const syncKey = `${contextId}:${selectedTimezone}:${courseIdFromContext ?? ""}`;
-    if (lastSyncedSessionStateRef.current === syncKey) return;
-
-    let canceled = false;
-
-    const payload: {
-      session_id: string;
-      timezone: string;
-      course_id?: string;
-    } = {
-      session_id: contextId,
-      timezone: selectedTimezone,
-      ...(courseIdFromContext ? { course_id: courseIdFromContext } : {course_id: "general"}),
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      void api
-        .post(sessionStateEndpoint, payload, {
-          headers: {
-            "x-tenant-id": tenantIdToUse,
-            ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
-          },
-        })
-        .then(() => {
-          if (canceled) return;
-          lastSyncedSessionStateRef.current = syncKey;
-        })
-        .catch(() => {
-          // Keep chat usable if session-state sync fails.
-        });
-    }, SESSION_STATE_SYNC_DELAY_MS);
-
-    return () => {
-      canceled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [chatWidget?.userId, contextId, courseIdFromContext, selectedTimezone, sessionStateEndpoint, tenantIdToUse]);
-
   // Core fetch — shared by sendMessage and sendApproval
   const postToAgent = useCallback(
     async (text: string, taskId?: string | null, extraParts?: Part[]): Promise<ParsedResponse> => {
       const controller = new AbortController();
       setAbortController(controller);
 
-      const isFirstMessageInSession = !contextId && !taskId;
-      const firstMessageConversationTitle = text.length > 54 ? `${text.slice(0, 54)}...` : text;
-      let initialContextId = contextId ?? null;
-
-      if (isFirstMessageInSession) {
-        const sessionStatePayload: {
-          conversation_title: string;
-          timezone: string;
-          course_id?: string;
-        } = {
-          conversation_title: firstMessageConversationTitle,
-          timezone: selectedTimezone,
-          ...(courseIdFromContext ? { course_id: courseIdFromContext } : {course_id: "general"}),
-        };
-
-        try {
-          const stateRes = await api.post(sessionStateEndpoint, sessionStatePayload, {
-            headers: {
-              "x-tenant-id": tenantIdToUse,
-              ...(chatWidget?.userId ? { "x-user-id": chatWidget.userId } : {}),
-            },
-            signal: controller.signal,
-          });
-
-          const sessionIdFromState = getSessionIdFromSessionStateResponse(stateRes.data);
-          if (sessionIdFromState) {
-            console.debug("Initialized new session with ID:", sessionIdFromState);
-            initialContextId = sessionIdFromState;
-
-            // Prevent the delayed auto-sync effect from re-sending the same state
-            // for the newly created session.
-            lastSyncedSessionStateRef.current = `${sessionIdFromState}:${selectedTimezone}:${courseIdFromContext ?? ""}`;
-          }
-        } catch (error) {
-          if (isRequestCanceled(error)) {
-            throw error;
-          }
-          // Keep chat usable even if pre-message state sync fails.
-        }
-      }
+      const initialContextId = contextId ?? null;
 
       const payload = {
         jsonrpc: "2.0",
@@ -1065,8 +966,15 @@ export default function ChatWidget({
             ...(initialContextId ? { contextId: initialContextId } : {}),
             ...(taskId ? { taskId } : {}),   // required for HITL resume
           },
+          metadata: {
+            adk_state: {
+              timezone: selectedTimezone,
+              course_id: courseIdFromContext ?? "general",
+            },
+          },
         },
       };
+
 
       try {
         const res = await api.post(endpoint, payload, {
@@ -1075,13 +983,14 @@ export default function ChatWidget({
           },
           signal: controller.signal,
         });
+        console.log(tenantIdToUse);
 
         return parseResponse(res.data as OrchestratorResponse);
       } finally {
         setAbortController((prev) => (prev === controller ? null : prev));
       }
     },
-    [chatWidget?.userId, contextId, courseIdFromContext, endpoint, selectedTimezone, sessionStateEndpoint, tenantIdToUse]
+    [contextId, courseIdFromContext, endpoint, selectedTimezone, tenantIdToUse]
   );
 
   const handleResponse = useCallback(
@@ -1289,11 +1198,10 @@ export default function ChatWidget({
                         <div className="space-y-1">
                           {rows.map((item) => (
                             <button
-                              className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
-                                item.sessionId === contextId
-                                  ? "border-primary/40 bg-muted"
-                                  : "hover:bg-muted/40"
-                              }`}
+                              className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${item.sessionId === contextId
+                                ? "border-primary/40 bg-muted"
+                                : "hover:bg-muted/40"
+                                }`}
                               key={item.sessionId}
                               onClick={() => void loadConversation(item)}
                               type="button"
