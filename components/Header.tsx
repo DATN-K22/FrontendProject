@@ -36,7 +36,7 @@ export default function Header() {
   }, [])
 
   const open = Boolean(anchorEl)
-  const menus = [
+  const menus: Array<{ label: string; path: string; external?: boolean }> = [
     { label: 'Home', path: '/' },
     {
       label: 'My course',
@@ -44,6 +44,14 @@ export default function Header() {
     },
     { label: 'Calendar', path: '/authenticated/schedule' }
   ]
+
+  if (userData?.roles?.includes('teacher')) {
+    menus.push({
+      label: 'Lab configuration',
+      path: 'https://d1rj9bz6vwjklr.cloudfront.net/',
+      external: true
+    })
+  }
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -117,7 +125,13 @@ export default function Header() {
             return (
               <Typography
                 key={item.path}
-                onClick={() => router.push(item.path)}
+                onClick={() => {
+                  if (item.external) {
+                    window.location.href = item.path
+                  } else {
+                    router.push(item.path)
+                  }
+                }}
                 sx={{
                   cursor: 'pointer',
                   color: isActive ? '#000' : '#5B5B5B',
