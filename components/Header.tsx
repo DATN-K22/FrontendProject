@@ -49,11 +49,11 @@ export default function Header() {
     levels: [],
     isPaid: undefined,
     minPrice: 0,
-    maxPrice: 500,
+    maxPrice: 500
   })
   const [searchResults, setSearchResults] = useState<SearchCourseResponseDto | null>(null)
   const [isSearching, setIsSearching] = useState(false)
-  
+
   const debouncedFilters = useDebounce(filters, 500)
 
   useEffect(() => {
@@ -80,12 +80,14 @@ export default function Header() {
 
   const open = Boolean(anchorEl)
   const menus = [
-    { label: 'Home', path: '/' },
+    { label: 'Home', path: '/', isTeacher: false },
     {
       label: 'My course',
-      path: '/authenticated/course/my-courses'
+      path: '/authenticated/course/my-courses',
+      isTeacher: false
     },
-    { label: 'Calendar', path: '/authenticated/schedule' }
+    { label: 'Calendar', path: '/authenticated/schedule', isTeacher: false },
+    { label: 'Lab configuration', path: 'https://d1rj9bz6vwjklr.cloudfront.net/', isTeacher: true }
   ]
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -151,7 +153,7 @@ export default function Header() {
             inputProps={{ 'aria-label': 'search' }}
             value={filters.q}
             onChange={(e) => {
-              setFilters(prev => ({ ...prev, q: e.target.value }))
+              setFilters((prev) => ({ ...prev, q: e.target.value }))
               if (!searchAnchorEl) setSearchAnchorEl(e.currentTarget)
             }}
             onFocus={handleSearchFocus}
@@ -162,7 +164,7 @@ export default function Header() {
             }}
           />
         </Box>
-        
+
         {/* Search & Filters Popover */}
         <Popover
           open={Boolean(searchAnchorEl)}
@@ -179,151 +181,182 @@ export default function Header() {
           disableAutoFocus
           disableEnforceFocus
           PaperProps={{
-            sx: { 
-              mt: 1, 
-              width: { xs: '90vw', md: 700 }, 
-              maxHeight: 500, 
-              display: 'flex', 
-              flexDirection: { xs: 'column', md: 'row' }, 
-              borderRadius: 2 
+            sx: {
+              mt: 1,
+              width: { xs: '90vw', md: 700 },
+              maxHeight: 500,
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              borderRadius: 2
             }
           }}
         >
-          {/* Left Side: Filters */}
-          <Box sx={{ width: { xs: '100%', md: 250 }, p: 2, borderRight: { md: '1px solid #eee' }, borderBottom: { xs: '1px solid #eee', md: 'none' }, overflowY: 'auto', flexShrink: 0 }}>
-            <Typography variant="subtitle1" fontWeight={600} mb={1}>Bộ lọc</Typography>
+          <Box
+            sx={{
+              width: { xs: '100%', md: 250 },
+              p: 2,
+              borderRight: { md: '1px solid #eee' },
+              borderBottom: { xs: '1px solid #eee', md: 'none' },
+              overflowY: 'auto',
+              flexShrink: 0
+            }}
+          >
+            <Typography variant='subtitle1' fontWeight={600} mb={1}>
+              Bộ lọc
+            </Typography>
             <Divider sx={{ mb: 2 }} />
 
-            <Typography variant="subtitle2" fontWeight={600} mb={1}>Giá</Typography>
+            <Typography variant='subtitle2' fontWeight={600} mb={1}>
+              Giá
+            </Typography>
             <RadioGroup
               value={filters.isPaid === undefined ? 'all' : filters.isPaid ? 'paid' : 'free'}
               onChange={(e) => {
                 const val = e.target.value
-                setFilters(prev => ({
+                setFilters((prev) => ({
                   ...prev,
                   isPaid: val === 'all' ? undefined : val === 'paid'
                 }))
               }}
             >
-              <FormControlLabel value="all" control={<Radio size="small" />} label="Tất cả" />
-              <FormControlLabel 
-                value="paid" 
-                control={<Radio size="small" />} 
-                label={`Trả phí ${searchResults?.facets?.priceTypes?.PAID !== undefined ? `(${searchResults.facets.priceTypes.PAID})` : ''}`} 
+              <FormControlLabel value='all' control={<Radio size='small' />} label='Tất cả' />
+              <FormControlLabel
+                value='paid'
+                control={<Radio size='small' />}
+                label={`Trả phí ${searchResults?.facets?.priceTypes?.PAID !== undefined ? `(${searchResults.facets.priceTypes.PAID})` : ''}`}
               />
-              <FormControlLabel 
-                value="free" 
-                control={<Radio size="small" />} 
-                label={`Miễn phí ${searchResults?.facets?.priceTypes?.FREE !== undefined ? `(${searchResults.facets.priceTypes.FREE})` : ''}`} 
+              <FormControlLabel
+                value='free'
+                control={<Radio size='small' />}
+                label={`Miễn phí ${searchResults?.facets?.priceTypes?.FREE !== undefined ? `(${searchResults.facets.priceTypes.FREE})` : ''}`}
               />
             </RadioGroup>
 
             <Box sx={{ px: 1, mt: 2, mb: 2 }}>
-               <Slider
-                 value={[filters.minPrice ?? 0, filters.maxPrice ?? 500]}
-                 onChange={(e, val) => {
-                   if (Array.isArray(val)) {
-                     setFilters(prev => ({ ...prev, minPrice: val[0], maxPrice: val[1] }))
-                   }
-                 }}
-                 min={0}
-                 max={500}
-                 step={0.01}
-                 valueLabelDisplay="auto"
-                 valueLabelFormat={(val) => `${val.toFixed(2)}đ`}
-                 size="small"
-               />
-               <Typography variant="caption" color="text.secondary">
-                 {(filters.minPrice ?? 0).toFixed(2)}đ - {(filters.maxPrice ?? 500).toFixed(2)}đ
-               </Typography>
+              <Slider
+                value={[filters.minPrice ?? 0, filters.maxPrice ?? 500]}
+                onChange={(e, val) => {
+                  if (Array.isArray(val)) {
+                    setFilters((prev) => ({ ...prev, minPrice: val[0], maxPrice: val[1] }))
+                  }
+                }}
+                min={0}
+                max={500}
+                step={0.01}
+                valueLabelDisplay='auto'
+                valueLabelFormat={(val) => `${val.toFixed(2)}đ`}
+                size='small'
+              />
+              <Typography variant='caption' color='text.secondary'>
+                {(filters.minPrice ?? 0).toFixed(2)}đ - {(filters.maxPrice ?? 500).toFixed(2)}đ
+              </Typography>
             </Box>
 
             <Divider sx={{ mb: 2 }} />
 
-            <Typography variant="subtitle2" fontWeight={600} mb={1}>Trình độ</Typography>
+            <Typography variant='subtitle2' fontWeight={600} mb={1}>
+              Trình độ
+            </Typography>
             <FormGroup>
-               {[
-                 { value: 'Beginner', label: 'Cơ bản' },
-                 { value: 'Intermediate', label: 'Trung cấp' },
-                 { value: 'Advanced', label: 'Nâng cao' }
-               ].map(level => {
-                 const count = searchResults?.facets?.levels?.[level.value] || 0
-                 return (
-                   <FormControlLabel
-                     key={level.value}
-                     control={
-                       <Checkbox 
-                         size="small" 
-                         checked={filters.levels?.includes(level.value)}
-                         onChange={(e) => {
-                           setFilters(prev => {
-                             const newLevels = e.target.checked 
-                               ? [...(prev.levels || []), level.value]
-                               : (prev.levels || []).filter(l => l !== level.value)
-                             return { ...prev, levels: newLevels }
-                           })
-                         }}
-                       />
-                     }
-                     label={`${level.label} (${count})`}
-                   />
-                 )
-               })}
+              {[
+                { value: 'Beginner', label: 'Cơ bản' },
+                { value: 'Intermediate', label: 'Trung cấp' },
+                { value: 'Advanced', label: 'Nâng cao' }
+              ].map((level) => {
+                const count = searchResults?.facets?.levels?.[level.value] || 0
+                return (
+                  <FormControlLabel
+                    key={level.value}
+                    control={
+                      <Checkbox
+                        size='small'
+                        checked={filters.levels?.includes(level.value)}
+                        onChange={(e) => {
+                          setFilters((prev) => {
+                            const newLevels = e.target.checked
+                              ? [...(prev.levels || []), level.value]
+                              : (prev.levels || []).filter((l) => l !== level.value)
+                            return { ...prev, levels: newLevels }
+                          })
+                        }}
+                      />
+                    }
+                    label={`${level.label} (${count})`}
+                  />
+                )
+              })}
             </FormGroup>
           </Box>
 
-          {/* Right Side: Results */}
           <Box sx={{ flex: 1, p: 2, overflowY: 'auto' }}>
-             {isSearching && (!searchResults || searchResults.data.length === 0) ? (
-               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                 <CircularProgress />
-               </Box>
-             ) : searchResults?.data?.length === 0 ? (
-               <Typography color="text.secondary" textAlign="center" mt={4}>Không tìm thấy kết quả nào</Typography>
-             ) : (
-               <List sx={{ p: 0 }}>
-                 {searchResults?.data?.map(course => (
-                   <ListItem 
-                     key={course.id} 
-                     sx={{ cursor: 'pointer', '&:hover': { bgcolor: '#f5f5f5' }, borderRadius: 1, mb: 1, px: 1, alignItems: 'flex-start' }}
-                     onClick={() => {
-                        setSearchAnchorEl(null)
-                        router.push(`/authenticated/course/${course.id}`)
-                     }}
-                   >
-                     <ListItemAvatar>
-                       <Avatar 
-                         variant="rounded" 
-                         src={course.thumbnail_url || ''} 
-                         sx={{ width: 100, height: 60, mr: 2 }}
-                       />
-                     </ListItemAvatar>
-                     <ListItemText 
-                       primary={
-                         <Typography variant="subtitle2" fontWeight={600} noWrap title={course.title}>
-                           {course.title}
-                         </Typography>
-                       }
-                       secondary={
-                         <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
-                           <span>{course.user?.name || 'Instructor'} • {
-                             course.course_level === 'Beginner' ? 'Cơ bản' : 
-                             course.course_level === 'Intermediate' ? 'Trung cấp' : 
-                             course.course_level === 'Advanced' ? 'Nâng cao' : course.course_level
-                           }</span>
-                           <span style={{ fontWeight: 600, color: '#d32f2f', marginTop: '2px' }}>
-                             {Number(course.price) === 0 ? 'Miễn phí' : `${Number(course.price).toLocaleString()}đ`}
-                           </span>
-                         </Typography>
-                       }
-                     />
-                   </ListItem>
-                 ))}
-               </List>
-             )}
+            {isSearching && (!searchResults || searchResults.data.length === 0) ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : searchResults?.data?.length === 0 ? (
+              <Typography color='text.secondary' textAlign='center' mt={4}>
+                Không tìm thấy kết quả nào
+              </Typography>
+            ) : (
+              <List sx={{ p: 0 }}>
+                {searchResults?.data?.map((course) => (
+                  <ListItem
+                    key={course.id}
+                    sx={{
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: '#f5f5f5' },
+                      borderRadius: 1,
+                      mb: 1,
+                      px: 1,
+                      alignItems: 'flex-start'
+                    }}
+                    onClick={() => {
+                      setSearchAnchorEl(null)
+                      router.push(`/authenticated/course/${course.id}`)
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar
+                        variant='rounded'
+                        src={course.thumbnail_url || ''}
+                        sx={{ width: 100, height: 60, mr: 2 }}
+                      />
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Typography variant='subtitle2' fontWeight={600} noWrap title={course.title}>
+                          {course.title}
+                        </Typography>
+                      }
+                      secondary={
+                        <Typography
+                          variant='caption'
+                          color='text.secondary'
+                          component='span'
+                          sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}
+                        >
+                          <span>
+                            {course.user?.name || 'Instructor'} •{' '}
+                            {course.course_level === 'Beginner'
+                              ? 'Cơ bản'
+                              : course.course_level === 'Intermediate'
+                                ? 'Trung cấp'
+                                : course.course_level === 'Advanced'
+                                  ? 'Nâng cao'
+                                  : course.course_level}
+                          </span>
+                          <span style={{ fontWeight: 600, color: '#d32f2f', marginTop: '2px' }}>
+                            {Number(course.price) === 0 ? 'Miễn phí' : `${Number(course.price).toLocaleString()}đ`}
+                          </span>
+                        </Typography>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            )}
           </Box>
         </Popover>
-
       </Stack>
       {userData && (
         <Stack direction='row' spacing={5} alignItems='center' sx={{ display: { xs: 'none', md: 'flex' } }}>
@@ -333,7 +366,10 @@ export default function Header() {
             return (
               <Typography
                 key={item.path}
-                onClick={() => router.push(item.path)}
+                onClick={() => {
+                  if (!item.isTeacher) router.push(item.path)
+                  else window.open(`https://d1rj9bz6vwjklr.cloudfront.net/`)
+                }}
                 sx={{
                   cursor: 'pointer',
                   color: isActive ? '#000' : '#5B5B5B',

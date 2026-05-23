@@ -68,7 +68,6 @@ import LessonModal from '@/components/instructor/courses/LessonModal'
 import ConfirmModal from '@/components/Confirm'
 import { CodeIcon, FlaskConical, HelpCircle, PlayCircle } from 'lucide-react'
 
-// Helper function to format duration (seconds to mm:ss)
 const formatDuration = (seconds?: number): string => {
   if (!seconds) return ''
   const mins = Math.floor(seconds / 60)
@@ -76,14 +75,12 @@ const formatDuration = (seconds?: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-// Deep-clone only what we need (chapter ids + lesson ids per chapter)
 const cloneOrder = (chapters: Chapter[]): Chapter[] =>
   chapters.map((ch) => ({
     ...ch,
     lessons: ch.lessons ? [...ch.lessons] : []
   }))
 
-// Check if two ordered lists differ by id sequence
 const hasOrderChanged = (original: Chapter[], modified: Chapter[]): boolean => {
   if (original.length !== modified.length) return true
   for (let i = 0; i < original.length; i++) {
@@ -98,7 +95,6 @@ const hasOrderChanged = (original: Chapter[], modified: Chapter[]): boolean => {
   return false
 }
 
-// Helper function to get icon based on lesson type
 export const getLessonIcon = (type: string) => {
   switch (type.toLowerCase()) {
     case 'lesson':
@@ -135,14 +131,11 @@ export default function CourseDetail() {
     description: string
     onConfirm: () => Promise<void>
   }>({ open: false, title: '', description: '', onConfirm: async () => {} })
-  // ── Drag state ──────────────────────────────────────────────────────────────
   const [dragChapterId, setDragChapterId] = useState<string | null>(null)
   const [dragLesson, setDragLesson] = useState<{ chapterId: string; lessonId: string } | null>(null)
   const [dropTargetChapterId, setDropTargetChapterId] = useState<string | null>(null)
   const [dropTargetLessonId, setDropTargetLessonId] = useState<string | null>(null)
 
-  // ── Order tracking ───────────────────────────────────────────────────────────
-  // originalOrder: server-committed order; modifiedOrder: pending client changes
   const [originalOrder, setOriginalOrder] = useState<Chapter[]>([])
   const [modifiedOrder, setModifiedOrder] = useState<Chapter[]>([])
   const isDirty = useMemo(() => hasOrderChanged(originalOrder, modifiedOrder), [originalOrder, modifiedOrder])
@@ -191,7 +184,6 @@ export default function CourseDetail() {
     fetchCourse()
   }, [fetchCourse])
 
-  // modifiedOrder is the source of truth for rendering
   const orderedChapters = modifiedOrder
 
   const reorderArray = <T,>(items: T[], fromIndex: number, toIndex: number) => {
@@ -201,7 +193,6 @@ export default function CourseDetail() {
     return next
   }
 
-  // ── Drop handlers (update modifiedOrder only, no API call) ──────────────────
   const handleChapterDrop = (targetChapterId: string) => {
     setDropTargetChapterId(null)
     if (!dragChapterId || dragChapterId === targetChapterId) return
@@ -884,17 +875,6 @@ export default function CourseDetail() {
                                         <QuizIcon fontSize='small' />
                                       )}
                                     </IconButton>
-                                    {lesson.type === 'lab' && (
-                                      <IconButton
-                                        size='small'
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          window.open(`https://d1rj9bz6vwjklr.cloudfront.net/`)
-                                        }}
-                                      >
-                                        <CodeIcon fontSize='small' />
-                                      </IconButton>
-                                    )}
 
                                     <IconButton
                                       size='small'
@@ -920,9 +900,7 @@ export default function CourseDetail() {
             </Paper>
           </Box>
 
-          {/* Right Column - Course Info */}
           <Box sx={{ width: { xs: '100%', md: 350 } }}>
-            {/* Price & Enroll */}
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
               {!course.isEnrolled && (
                 <Typography variant='h4' fontWeight='bold' gutterBottom>

@@ -227,7 +227,6 @@ export default function MyCoursesPage() {
   const handleTeacherViewChange = (_: React.MouseEvent<HTMLElement>, newView: 'teaching' | 'enrolled' | null) => {
     if (newView !== null) {
       setTeacherView(newView)
-      // ✅ Reset offset về 0 khi đổi tab
       const params = new URLSearchParams(searchParams.toString())
       params.set('offset', '0')
       router.push(`${pathname}?${params.toString()}`)
