@@ -40,10 +40,10 @@ export const authUtils = {
 
     await localStorage.removeItem('refreshToken')
     await localStorage.removeItem('accessToken')
-    localStorage.removeItem('userData')
+    await localStorage.removeItem('userData')
 
-    sessionStorage.removeItem('refreshToken')
-    sessionStorage.removeItem('accessToken')
-    sessionStorage.removeItem('userData')
+    await sessionStorage.removeItem('refreshToken')
+    await sessionStorage.removeItem('accessToken')
+    await sessionStorage.removeItem('userData')
   }
 }
