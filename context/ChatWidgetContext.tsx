@@ -35,8 +35,10 @@ const useChatStore = create<ChatWidgetStore>()(
 
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
-      setContextId: (id: string | null) => set({ contextId: id }),
-      setSelectedTimezone: (timezone: string) => set({ selectedTimezone: timezone })
+      setContextId: (id: string | null) =>
+        set({ contextId: id }),
+      setSelectedTimezone: (timezone: string) =>
+        set({ selectedTimezone: timezone }),
     }),
     {
       name: 'chat-widget',
@@ -81,12 +83,44 @@ export const ChatWidgetProvider: React.FC<{ userId: string | null; children: Rea
 
 export const useChatWidget = () => useContext(chatWidgetContext)
 
+// ─────────────────────────────────────────
+// Helper
+// ─────────────────────────────────────────
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const NUMERIC_ID_REGEX = /^\d+$/
+
+const isId = (segment: string) =>
+  NUMERIC_ID_REGEX.test(segment) || UUID_REGEX.test(segment)
+
 function detectPageContext(pathname: string): PageContext {
-  const lesson = pathname.match(/courses\/([^/]+)\/lessons\/([^/]+)/)
-  if (lesson) return { type: 'lesson', courseId: lesson[1], lessonId: lesson[2] }
+  const segments = pathname.split('/').filter(Boolean)
 
-  const course = pathname.match(/courses\/([^/]+)/)
-  if (course) return { type: 'course', courseId: course[1] }
+  const courseIdIndex = segments.findIndex(
+    (seg, i) =>
+      isId(seg) &&
+      (segments[i - 1] === 'course' || segments[i - 1] === 'courses')
+  )
 
-  return { type: 'general' }
+  if (courseIdIndex === -1) return { type: 'general' }
+
+  const courseId = segments[courseIdIndex]
+  const next = segments[courseIdIndex + 1]
+
+  if (!next) return { type: 'course', courseId }
+
+  if (next === 'lesson' || next === 'lessons') {
+    const lessonId = segments[courseIdIndex + 2]
+    if (lessonId && isId(lessonId)) return { type: 'lesson', courseId, lessonId }
+    return { type: 'course', courseId }
+  }
+
+  const nonLessonRouteSegments = new Set([
+    'quiz', 'quizzes', 'lab', 'labs',
+    'payment', 'overview', 'start', 'confirm',
+  ])
+
+  if (isId(next)) return { type: 'lesson', courseId, lessonId: next }
+  if (!nonLessonRouteSegments.has(next)) return { type: 'lesson', courseId, lessonId: next }
+
+  return { type: 'course', courseId }
 }
