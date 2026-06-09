@@ -80,11 +80,8 @@ export default function LoginPage() {
         vertical: 'bottom',
         horizontal: 'left'
       })
-      if (user.role === 'Admin') {
-        router.replace('/authenticated/admin')
-      } else {
-        router.replace('/')
-      }
+
+      router.replace('/authenticated')
     } catch (error: any) {
       console.error('Login error:', error)
 

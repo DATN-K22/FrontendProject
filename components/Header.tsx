@@ -104,7 +104,7 @@ export default function Header() {
 
   const open = Boolean(anchorEl)
   const menus = [
-    { label: 'Home', path: '/', isTeacher: false },
+    { label: 'Home', path: '/authenticated', isTeacher: false },
     {
       label: 'My course',
       path: '/authenticated/course/my-courses',
@@ -132,19 +132,29 @@ export default function Header() {
       component='header'
       sx={{
         color: '#000000',
+
         px: { xs: 2, md: 6 },
-        py: isSticky ? 2 : 1,
+
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+
         position: isSticky ? 'fixed' : 'static',
+
         top: isSticky ? 0 : 'auto',
         left: isSticky ? 0 : 'auto',
         right: isSticky ? 0 : 'auto',
+
         backgroundColor: '#ffffff',
+
         zIndex: 100,
-        boxShadow: isSticky ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
-        width: isSticky ? '100%' : 'auto',
+
+        borderBottomLeftRadius: '24px',
+
+        borderBottomRightRadius: '24px',
+
+        boxShadow: isSticky ? '0 20px 50px rgba(0,0,0,0.3)' : 'none',
+
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
     >

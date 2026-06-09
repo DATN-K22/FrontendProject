@@ -16,42 +16,48 @@ export default function CourseCategories() {
   const { setItemRef, getItemStyle, durationMs, easing } = useScrollRevealList({
     direction: 'alternate'
   })
+
   const categories = useMemo(
     () => [
       {
         id: 1,
         title: CourseLevel.Beginner,
-        icon: <SchoolIcon sx={{ fontSize: 40 }} />,
-        bgColor: '#D4F1F4',
-        iconColor: '#4DB8C4'
+        icon: <SchoolIcon sx={{ fontSize: 36 }} />,
+        bgColor: 'rgba(56, 211, 183, 0.15)',
+        iconColor: '#38D3B7',
+        accentColor: '#38D3B7'
       },
       {
         id: 2,
         title: CourseLevel.Intermediate,
-        icon: <DesignServicesIcon sx={{ fontSize: 40 }} />,
-        bgColor: '#D4DEF4',
-        iconColor: '#5B7BC4'
+        icon: <DesignServicesIcon sx={{ fontSize: 36 }} />,
+        bgColor: 'rgba(99, 140, 255, 0.15)',
+        iconColor: '#638CFF',
+        accentColor: '#638CFF'
       },
       {
         id: 3,
         title: CourseLevel.Advanced,
-        icon: <ComputerIcon sx={{ fontSize: 40 }} />,
-        bgColor: '#D4E8F4',
-        iconColor: '#5BA5C4'
+        icon: <ComputerIcon sx={{ fontSize: 36 }} />,
+        bgColor: 'rgba(255, 214, 0, 0.12)',
+        iconColor: '#FFD600',
+        accentColor: '#FFD600'
       },
       {
         id: 4,
         title: CourseLevel.Expert,
-        icon: <StorageIcon sx={{ fontSize: 40 }} />,
-        bgColor: '#FFE8D6',
-        iconColor: '#FF8C42'
+        icon: <StorageIcon sx={{ fontSize: 36 }} />,
+        bgColor: 'rgba(255, 107, 107, 0.15)',
+        iconColor: '#FF6B6B',
+        accentColor: '#FF6B6B'
       },
       {
         id: 5,
         title: CourseLevel.AllLevels,
-        icon: <WorkIcon sx={{ fontSize: 40 }} />,
-        bgColor: '#B8F2E6',
-        iconColor: '#3DB69A'
+        icon: <WorkIcon sx={{ fontSize: 36 }} />,
+        bgColor: 'rgba(179, 102, 255, 0.15)',
+        iconColor: '#B366FF',
+        accentColor: '#B366FF'
       }
     ],
     []
@@ -60,111 +66,147 @@ export default function CourseCategories() {
   return (
     <Box
       sx={{
-        py: { xs: 4, md: 5 },
-        px: { xs: 2, sm: 3, md: 6 },
         minHeight: '60vh',
-        bgcolor: '#FAF9F4',
+        bgcolor: '#ffffff',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'visible'
       }}
     >
-      {/* Header Section */}
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          mb: 3
+          bgcolor: '#252641',
+          borderRadius: '32px',
+          py: { xs: 6, md: 8 },
+          px: { xs: 2, sm: 3, md: 6 },
+
+          boxShadow: '0 25px 60px rgba(0,0,0,0.25)'
         }}
       >
-        <Typography
-          variant='h4'
+        <Box
           sx={{
-            fontWeight: 600,
-            color: '#1a1a1a'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 5,
+            position: 'relative'
           }}
         >
-          Choice favourite course from top category
-        </Typography>
-        <Typography
-          sx={{
-            color: '#FFD600',
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontSize: '1rem',
-            '&:hover': {
-              textDecoration: 'underline'
-            }
-          }}
-        >
-          View All
-        </Typography>
-      </Box>
-
-      {/* Cards Grid - 5 items per row */}
-      <Grid container spacing={3}>
-        {categories.map((category, idx) => (
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }} key={category.id}>
-            <Card
-              ref={setItemRef(idx)}
-              onClick={() => router.push(`/search?levels=${encodeURIComponent(category.title)}`)}
+          <Box>
+            <Typography
+              variant='h4'
               sx={{
-                height: '100%',
-                borderRadius: 3,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                transition: `transform ${durationMs}ms ${easing}, opacity 240ms linear, box-shadow 0.3s ease`,
-                cursor: 'pointer',
-                '&:hover': {
-                  transform: 'translateY(-8px)',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                  transitionDelay: '0ms'
-                },
-                ...getItemStyle(idx)
+                fontWeight: 700,
+                color: '#ffffff',
+                lineHeight: 1.2
               }}
             >
-              <CardContent
+              Choose your favourite course
+              <Box
+                component='span'
                 sx={{
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center'
+                  color: '#FFD600',
+                  display: 'block'
                 }}
               >
-                {/* Icon Box */}
-                <Box
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '12px',
-                    backgroundColor: category.bgColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mb: 2,
-                    color: category.iconColor,
-                    overflow: 'hidden'
-                  }}
-                >
-                  {category.icon}
-                </Box>
+                from top category
+              </Box>
+            </Typography>
+          </Box>
+        </Box>
 
-                {/* Title */}
-                <Typography
+        <Grid container spacing={2.5}>
+          {categories.map((category, idx) => (
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }} key={category.id}>
+              <Card
+                ref={setItemRef(idx)}
+                onClick={() => router.push(`/search?levels=${encodeURIComponent(category.title)}`)}
+                sx={{
+                  height: '100%',
+                  borderRadius: 3,
+                  bgcolor: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: 'none',
+                  backdropFilter: 'blur(8px)',
+                  transition: `transform ${durationMs}ms ${easing}, opacity 240ms linear, border-color 0.25s ease, box-shadow 0.25s ease`,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    bottom: 0,
+                    left: '50%',
+                    transform: 'translateX(-50%) scaleX(0)',
+                    width: '60%',
+                    height: '2px',
+                    bgcolor: category.accentColor,
+                    borderRadius: '2px 2px 0 0',
+                    transition: 'transform 0.25s ease'
+                  },
+                  '&:hover': {
+                    transform: 'translateY(-6px)',
+                    borderColor: `${category.accentColor}55`,
+                    boxShadow: `0 12px 32px rgba(0,0,0,0.3), 0 0 0 1px ${category.accentColor}22`,
+                    transitionDelay: '0ms',
+                    '&::after': {
+                      transform: 'translateX(-50%) scaleX(1)'
+                    }
+                  },
+                  ...getItemStyle(idx)
+                }}
+              >
+                <CardContent
                   sx={{
-                    fontWeight: 600,
-                    color: '#1a1a1a',
-                    fontSize: '1.125rem'
+                    p: 3,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center'
                   }}
                 >
-                  {category.title}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
+                  <Box
+                    sx={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: '16px',
+                      backgroundColor: category.bgColor,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 2.5,
+                      color: category.iconColor,
+                      border: `1px solid ${category.accentColor}30`,
+                      transition: 'transform 0.25s ease',
+                      '.MuiCard-root:hover &': {
+                        transform: 'scale(1.1)'
+                      }
+                    }}
+                  >
+                    {category.icon}
+                  </Box>
+
+                  <Typography
+                    sx={{
+                      fontWeight: 600,
+                      color: '#e8e8f4',
+                      fontSize: '1rem',
+                      transition: 'color 0.25s ease',
+                      '.MuiCard-root:hover &': {
+                        color: category.accentColor
+                      }
+                    }}
+                  >
+                    {category.title}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
     </Box>
   )
 }

@@ -14,9 +14,7 @@ export default function LearnAideHeroSection() {
       if (!heroRef.current) return
       const rect = heroRef.current.getBoundingClientRect()
       const height = rect.height || window.innerHeight
-      // distance the element has moved past the top of viewport
       const distanceScrolled = Math.max(0, -rect.top)
-      // fade out over ~60% of the element height
       const fadeProgress = Math.min(1, distanceScrolled / (height * 0.6))
       const next = Math.max(0, 1 - fadeProgress)
       if (rafId) cancelAnimationFrame(rafId)
@@ -112,11 +110,10 @@ export default function LearnAideHeroSection() {
             sx={{
               fontSize: { xs: '1.1rem', sm: '1.25rem', md: '2rem' },
               fontWeight: 600,
-              color: '#1a2d3a',
+              color: '#293944',
               lineHeight: 1.6,
               letterSpacing: '0.02em',
-              fontFamily: "'Georgia', serif",
-              textAlign: 'justify',
+              // textAlign: 'justify',
               animation: 'slideDown 700ms ease-out both',
               animationDelay: '240ms'
             }}

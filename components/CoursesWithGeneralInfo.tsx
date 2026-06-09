@@ -1,5 +1,6 @@
 import { Avatar, Box, Button, Grid, IconButton, Skeleton, Tooltip, Typography } from '@mui/material'
 import { useRouter } from 'next/navigation'
+import { useScrollRevealList } from '@/hooks/useScrollRevealList'
 import StarIcon from '@mui/icons-material/Star'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineOutlinedIcon from '@mui/icons-material/DeleteOutlineOutlined'
@@ -55,6 +56,11 @@ export default function CoursesWithGeneralInfo({
 }) {
   const skeletonArray = Array.from({ length: 4 })
   const router = useRouter()
+  const { setItemRef, getItemStyle, durationMs, easing } = useScrollRevealList({
+    direction: 'left',
+    enableOpacity: false,
+    enableScrollProgress: true
+  })
 
   const cardSx = {
     borderRadius: 4,
@@ -93,8 +99,14 @@ export default function CoursesWithGeneralInfo({
   }
 
   return (
-    <Box>
-      {/* Course Grid */}
+    <Box
+      ref={setItemRef(0)}
+      sx={{
+        transition: `transform ${durationMs}ms ${easing}, opacity 240ms linear`,
+        ...getItemStyle(0),
+        background: 'white'
+      }}
+    >
       <Grid container spacing={{ xs: 2, md: 3 }} columns={{ xs: 4, sm: 8, md: 12 }}>
         {(loading || !courses ? skeletonArray : courses).map((item: any, index: number) => {
           const isSkeleton = loading || !courses
@@ -111,6 +123,7 @@ export default function CoursesWithGeneralInfo({
                 }
                 sx={{
                   ...cardSx,
+                  transition: 'all 0.3s ease',
                   ...(isSkeleton ? {} : hoverSx)
                 }}
               >

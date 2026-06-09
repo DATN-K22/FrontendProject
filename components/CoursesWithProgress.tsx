@@ -1,5 +1,6 @@
 import { Avatar, Box, Grid, Skeleton, Typography } from '@mui/material'
 import { useRouter } from 'next/navigation'
+import { useScrollRevealList } from '@/hooks/useScrollRevealList'
 
 export type RelearningCourse = {
   id: string
@@ -22,12 +23,20 @@ export default function CoursesWithProgress({
   const skeletonArray = Array.from({ length: 3 })
   const isSkeleton = loading || !reLearningCourse
   const router = useRouter()
+  const { setItemRef, getItemStyle, durationMs, easing } = useScrollRevealList({
+    direction: 'left',
+    enableOpacity: false,
+    enableScrollProgress: true
+  })
   return (
     <Box
+      ref={setItemRef(0)}
       sx={{
-        background: '#FAF9F4',
+        background: '#ffffff',
         py: { xs: 4, md: 5 },
-        px: { xs: 2, sm: 3, md: 6 }
+        px: { xs: 2, sm: 3, md: 6 },
+        transition: `transform ${durationMs}ms ${easing}, opacity 240ms linear`,
+        ...getItemStyle(0)
       }}
     >
       {/* Header */}
@@ -74,6 +83,8 @@ export default function CoursesWithProgress({
                 onClick={isSkeleton ? undefined : () => router.push(`/authenticated/course/${course.id}`)}
                 sx={{
                   borderRadius: 4,
+                  borderBottomLeftRadius: 16,
+                  borderBottomRightRadius: 16,
                   bgcolor: '#fff',
                   p: 2,
                   display: 'flex',
@@ -81,7 +92,9 @@ export default function CoursesWithProgress({
                   flexDirection: 'column',
                   height: '100%',
                   border: 'none',
-                  boxShadow: isSkeleton ? '0 2px 8px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.08)',
+                  boxShadow: isSkeleton
+                    ? '0 8px 20px -12px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.08)'
+                    : '0 8px 20px -12px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.08)',
                   transition: 'all 0.3s ease',
                   textAlign: 'left',
                   ...(isSkeleton
@@ -90,7 +103,7 @@ export default function CoursesWithProgress({
                         cursor: 'pointer',
                         '&:hover': {
                           transform: 'translateY(-8px)',
-                          boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+                          boxShadow: '0 16px 32px -12px rgba(0,0,0,0.4), 0 4px 10px rgba(0,0,0,0.12)'
                         }
                       })
                 }}

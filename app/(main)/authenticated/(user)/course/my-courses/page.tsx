@@ -2,18 +2,7 @@
 
 import CoursesWithGeneralInfo, { RecommendedCourse } from '@/components/CoursesWithGeneralInfo'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import {
-  Box,
-  Pagination,
-  Typography,
-  Skeleton,
-  Stack,
-  Button,
-  Alert,
-  Snackbar,
-  ToggleButtonGroup,
-  ToggleButton
-} from '@mui/material'
+import { Box, Pagination, Typography, Skeleton, Stack, Button, Alert, Snackbar } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { authUtils } from '@/utils/auth'
@@ -31,8 +20,6 @@ import { useState } from 'react'
 
 const ITEMS_PER_PAGE = 12
 
-// ─── Styled Components ────────────────────────────────────────────────────────
-// (giữ nguyên tất cả styled components như cũ)
 const PageWrapper = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
   backgroundColor: '#FAF9F4',
@@ -135,8 +122,6 @@ const CoursePagination = ({ meta, onChange }: CoursePaginationProps) => {
   )
 }
 
-// ─── Page Component ───────────────────────────────────────────────────────────
-
 export default function MyCoursesPage() {
   const router = useRouter()
   const pathname = usePathname()
@@ -148,7 +133,6 @@ export default function MyCoursesPage() {
   const userId = String(userData?.id ?? '')
   const isTeacher = String(userData?.role || '').toLowerCase() === 'teacher'
 
-  const [teacherView, setTeacherView] = useState<'teaching' | 'enrolled'>('teaching')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCourse, setEditingCourse] = useState<CreateCourseDto | UpdateCourseDto | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -159,8 +143,7 @@ export default function MyCoursesPage() {
     severity: 'success'
   })
 
-  const teachingOffset = isTeacher && teacherView === 'teaching' ? currentOffset : 1
-  const enrolledOffset = isTeacher && teacherView === 'enrolled' ? currentOffset : 1
+  const teachingOffset = isTeacher ? currentOffset : 1
   const studentOffset = !isTeacher ? currentOffset : 1
 
   const studentEnrolled = useEnrolledCourses(!isTeacher ? userId : '', studentOffset, ITEMS_PER_PAGE)
@@ -173,35 +156,13 @@ export default function MyCoursesPage() {
     error: teachingError
   } = useInstructorCourses(isTeacher ? userId : '', teachingOffset, ITEMS_PER_PAGE)
 
-  const {
-    courses: teacherEnrolledCourses,
-    meta: teacherEnrolledMeta,
-    loading: teacherEnrolledLoading
-  } = useEnrolledCourses(isTeacher ? userId : '', enrolledOffset, ITEMS_PER_PAGE)
-
   const { create, loading: createLoading, error: createError } = useCreateCourse()
   const { update, loading: updateLoading, error: updateError } = useUpdateCourse()
   const { remove, loading: deleteLoading } = useDeleteCourse()
 
-  // ── Derived ──────────────────────────────────────────────────────────────
-
-  const activeCourses = isTeacher
-    ? teacherView === 'teaching'
-      ? teachingCourses
-      : teacherEnrolledCourses
-    : studentEnrolled.courses
-
-  const activeMeta = isTeacher
-    ? teacherView === 'teaching'
-      ? teachingMeta
-      : teacherEnrolledMeta
-    : studentEnrolled.meta
-
-  const activeLoading = isTeacher
-    ? teacherView === 'teaching'
-      ? teachingLoading
-      : teacherEnrolledLoading
-    : studentEnrolled.loading
+  const activeCourses = isTeacher ? teachingCourses : studentEnrolled.courses
+  const activeMeta = isTeacher ? teachingMeta : studentEnrolled.meta
+  const activeLoading = isTeacher ? teachingLoading : studentEnrolled.loading
 
   const mappedTeachingCourses = teachingCourses.map((course) => ({
     ...course,
@@ -209,11 +170,9 @@ export default function MyCoursesPage() {
     user: { name: userData?.name || 'Instructor', avatar_url: userData?.avt_url || '' }
   }))
 
-  const displayCourses = isTeacher && teacherView === 'teaching' ? mappedTeachingCourses : activeCourses
+  const displayCourses = isTeacher ? mappedTeachingCourses : activeCourses
 
   const isEmpty = !activeLoading && activeCourses.length === 0
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const showToast = (message: string, severity: 'success' | 'error' = 'success') =>
     setToast({ open: true, message, severity })
@@ -222,15 +181,6 @@ export default function MyCoursesPage() {
     const params = new URLSearchParams(searchParams.toString())
     params.set('offset', String(page))
     router.push(`${pathname}?${params.toString()}`)
-  }
-
-  const handleTeacherViewChange = (_: React.MouseEvent<HTMLElement>, newView: 'teaching' | 'enrolled' | null) => {
-    if (newView !== null) {
-      setTeacherView(newView)
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('offset', '0')
-      router.push(`${pathname}?${params.toString()}`)
-    }
   }
 
   const openAdd = () => {
@@ -285,8 +235,6 @@ export default function MyCoursesPage() {
     }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <PageWrapper>
       <HeaderSection>
@@ -296,54 +244,24 @@ export default function MyCoursesPage() {
 
         {isTeacher ? (
           <Stack direction='row' alignItems='center' justifyContent='space-between' gap={2} flexWrap='wrap'>
-            <Stack direction='row' alignItems='center' gap={2}>
-              <Typography variant='body2' color='text.secondary'>
-                {activeMeta.totalItems} courses
-              </Typography>
-              <ToggleButtonGroup
-                value={teacherView}
-                exclusive
-                onChange={handleTeacherViewChange}
-                sx={{
-                  backgroundColor: '#F3F4F6',
-                  borderRadius: 2,
-                  border: '1px solid #E5E7EB',
-                  '& .MuiToggleButton-root': {
-                    textTransform: 'none',
-                    fontWeight: 500,
-                    fontSize: 14,
-                    color: '#6B7280',
-                    border: 'none',
-                    '&:hover': { backgroundColor: '#E5E7EB' }
-                  },
-                  '& .Mui-selected': {
-                    backgroundColor: '#FFD700 !important',
-                    color: '#000 !important',
-                    fontWeight: 600
-                  }
-                }}
-              >
-                <ToggleButton value='teaching'>My Teaching</ToggleButton>
-                <ToggleButton value='enrolled'>My Enrolled</ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-            {teacherView === 'teaching' && (
-              <Button
-                variant='contained'
-                onClick={openAdd}
-                sx={{
-                  backgroundColor: '#FFD700',
-                  color: '#151312',
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 700,
-                  boxShadow: 'none',
-                  '&:hover': { backgroundColor: '#FFC700', boxShadow: 'none' }
-                }}
-              >
-                Add Course
-              </Button>
-            )}
+            <Typography variant='body2' color='text.secondary'>
+              {activeMeta.totalItems} courses
+            </Typography>
+            <Button
+              variant='contained'
+              onClick={openAdd}
+              sx={{
+                backgroundColor: '#FFD700',
+                color: '#151312',
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 700,
+                boxShadow: 'none',
+                '&:hover': { backgroundColor: '#FFC700', boxShadow: 'none' }
+              }}
+            >
+              Add Course
+            </Button>
           </Stack>
         ) : activeLoading ? (
           <Skeleton width={180} height={22} />
@@ -355,7 +273,7 @@ export default function MyCoursesPage() {
       </HeaderSection>
 
       <ContentSection>
-        {isTeacher && teachingError && teacherView === 'teaching' && (
+        {isTeacher && teachingError && (
           <Alert severity='error' sx={{ mb: 3, borderRadius: 2 }}>
             {teachingError}
           </Alert>
@@ -367,17 +285,13 @@ export default function MyCoursesPage() {
             loading={activeLoading}
             courses={displayCourses as RecommendedCourse[]}
             showPrice={false}
-            visualPreset={isTeacher && teacherView === 'teaching' ? 'course-detail' : 'default'}
-            teacherMode={isTeacher && teacherView === 'teaching'}
+            visualPreset={isTeacher ? 'course-detail' : 'default'}
+            teacherMode={isTeacher}
             manageLabel='Manage'
-            courseHrefBuilder={
-              isTeacher && teacherView === 'teaching' ? (item) => `/authenticated/course/${item.id}` : undefined
-            }
-            onManageCourse={isTeacher && teacherView === 'teaching' ? (item) => goToCourseDetail(item.id) : undefined}
-            onEditCourse={
-              isTeacher && teacherView === 'teaching' ? (item) => openEdit(item as CreateCourseDto) : undefined
-            }
-            onDeleteCourse={isTeacher && teacherView === 'teaching' ? (item) => openDelete(item.id) : undefined}
+            courseHrefBuilder={isTeacher ? (item) => `/authenticated/course/${item.id}` : undefined}
+            onManageCourse={isTeacher ? (item) => goToCourseDetail(item.id) : undefined}
+            onEditCourse={isTeacher ? (item) => openEdit(item as CreateCourseDto) : undefined}
+            onDeleteCourse={isTeacher ? (item) => openDelete(item.id) : undefined}
           />
         )}
       </ContentSection>

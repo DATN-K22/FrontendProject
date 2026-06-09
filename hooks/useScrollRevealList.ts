@@ -11,6 +11,8 @@ type ScrollRevealListOptions = {
   durationMs?: number
   delayMs?: number
   easing?: string
+  enableOpacity?: boolean
+  enableScrollProgress?: boolean
 }
 
 export type ScrollRevealStyle = {
@@ -27,12 +29,19 @@ export function useScrollRevealList(options: ScrollRevealListOptions = {}) {
     direction = 'left',
     durationMs = 560,
     delayMs = 120,
-    easing = 'cubic-bezier(.2,.9,.2,1)'
+    easing = 'cubic-bezier(.2,.9,.2,1)',
+    enableOpacity = true,
+    enableScrollProgress = true
   } = options
 
   const itemRefs = useRef<Array<HTMLElement | null>>([])
   const [visible, setVisible] = useState<number[]>([])
   const visibleRef = useRef<number[]>([])
+  const [isMounted, setIsMounted] = useState(false) // 👈 add this
+
+  useEffect(() => {
+    setIsMounted(true) // 👈 fires after hydration, safe to diverge from server
+  }, [])
 
   useEffect(() => {
     visibleRef.current = visible
@@ -54,18 +63,27 @@ export function useScrollRevealList(options: ScrollRevealListOptions = {}) {
 
   const getItemStyle = useCallback(
     (index: number): ScrollRevealStyle => {
+      if (!isMounted) {
+        // 👈 match server: fully visible, no transform
+        return {
+          opacity: 1,
+          transform: 'translateX(0)',
+          willChange: 'transform, opacity'
+        }
+      }
+
       const isVisible = visible.includes(index)
       const dir = resolveDirection(index)
       const translateX = dir === 'left' ? -offset : offset
 
       return {
-        opacity: isVisible ? 1 : 0,
+        opacity: enableOpacity ? (isVisible ? 1 : 0) : 1,
         transform: isVisible ? 'translateX(0)' : `translateX(${translateX}px)`,
         transitionDelay: isVisible ? `${index * delayMs}ms` : '0ms',
         willChange: 'transform, opacity'
       }
     },
-    [delayMs, offset, visible, direction]
+    [isMounted, delayMs, offset, visible, direction, enableOpacity]
   )
 
   useEffect(() => {
@@ -101,21 +119,29 @@ export function useScrollRevealList(options: ScrollRevealListOptions = {}) {
           const dir = resolveDirection(i)
           const translateX = (1 - progress) * (dir === 'left' ? -offset : offset)
 
-          el.style.opacity = String(progress)
+          if (enableOpacity) {
+            el.style.opacity = String(progress)
+          } else {
+            el.style.opacity = '1'
+          }
           el.style.transform = `translateX(${translateX}px)`
         })
         ticking = false
       })
     }
 
-    window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll()
+    if (enableScrollProgress) {
+      window.addEventListener('scroll', onScroll, { passive: true })
+      onScroll()
+    }
 
     return () => {
       observer.disconnect()
-      window.removeEventListener('scroll', onScroll)
+      if (enableScrollProgress) {
+        window.removeEventListener('scroll', onScroll)
+      }
     }
-  }, [threshold, offset, direction])
+  }, [threshold, offset, direction, enableOpacity, enableScrollProgress])
 
   return {
     setItemRef,

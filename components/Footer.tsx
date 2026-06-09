@@ -1,62 +1,82 @@
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Divider, Typography } from '@mui/material'
 
 export default function Footer() {
   return (
     <Box
-      component="footer"
+      component='footer'
       sx={{
-        bgcolor: "#252641",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        textAlign: "center",
-        py: { xs: 8, md: 14 },
-        px: 2,
+        bgcolor: '#252641',
+        color: '#fff',
+        position: 'relative',
+        overflow: 'hidden'
       }}
     >
-      <Typography
-        variant="h2"
-        sx={{
-          fontWeight: 700,
-          maxWidth: 1100,
-          fontSize: { xs: "1.6rem", md: "2.6rem", lg: "3rem" },
-          lineHeight: 1.08,
-        }}
-      >
-        AI-Powered Online Learning Platform with Virtual Assistant
-      </Typography>
+      <Box sx={{ px: { xs: 3, sm: 6, md: 10 }, pt: { xs: 8, md: 12 }, pb: { xs: 1, md: 2 } }}>
+        <Box
+          sx={{
+            textAlign: 'center',
+            mb: { xs: 7, md: 10 }
+          }}
+        >
+          <Typography
+            variant='h2'
+            sx={{
+              fontWeight: 800,
+              maxWidth: 900,
+              mx: 'auto',
+              fontSize: { xs: '1.8rem', md: '2.8rem', lg: '3.2rem' },
+              lineHeight: 1.1,
+              background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.75) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}
+          >
+            Learn Cloud Computing,
+            <Box
+              component='span'
+              sx={{
+                display: 'block',
+                background: '#FFD600',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text'
+              }}
+            >
+              Build Real Skills on AWS.
+            </Box>
+          </Typography>
 
-      <Typography
-        variant="h6"
-        sx={{
-          mt: 3,
-          maxWidth: 900,
-          color: "rgba(255,255,255,0.82)",
-          fontSize: { xs: "0.98rem", md: "1.1rem" },
-        }}
-      >
-        Build real-world cloud expertise with hands-on AWS labs, architecture
-        best practices, and AI-powered guidance whenever you need support.
-      </Typography>
+          <Typography
+            sx={{
+              mt: 2.5,
+              maxWidth: 600,
+              mx: 'auto',
+              color: 'rgba(255,255,255,0.55)',
+              fontSize: { xs: '0.95rem', md: '1.05rem' },
+              lineHeight: 1.7
+            }}
+          >
+            Hands-on labs, structured paths, and an AI agent that guides you every step of the way.
+          </Typography>
+        </Box>
 
-      <Button
-        variant="contained"
-        sx={{
-          bgcolor: "#FFCC00",
-          color: "#000",
-          mt: 6,
-          px: 4,
-          py: 1.5,
-          borderRadius: "9999px",
-          fontWeight: 700,
-          boxShadow: "none",
-          textTransform: "none",
-          "&:hover": { bgcolor: "#f2b800", boxShadow: "none" },
-        }}
-      >
-        Start chatbot now
-      </Button>
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)', mb: 2 }} />
+
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 2
+          }}
+        >
+          <Typography sx={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem' }}>
+            © {new Date().getFullYear()} LearnAide. All rights reserved.
+          </Typography>
+        </Box>
+      </Box>
     </Box>
-  );
+  )
 }

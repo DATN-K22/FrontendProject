@@ -1,12 +1,10 @@
 'use client'
 
 import api from '@/api/api'
-import { Avatar, Box, Card, CardContent, Container, Grid, Skeleton, Typography } from '@mui/material'
+import { Box, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAlert } from '@/components/Alert'
-import { ApiResponse } from '@/utils/dto/ApiResponse'
-import { CourseLevel } from '@/components/CoursesWithGeneralInfo'
 import { authUtils } from '@/utils/auth'
 import CoursesWithProgress, { RelearningCourse } from '@/components/CoursesWithProgress'
 import CoursesWithGeneralInfo, { RecommendedCourse } from '@/components/CoursesWithGeneralInfo'
@@ -19,10 +17,16 @@ export default function HomePage() {
 
   const [recommendationCourse, setRecommendationCourse] = useState<RecommendedCourse[] | null>(null)
 
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const { showAlert } = useAlert()
   const { userData } = authUtils.getAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (userData) {
+      router.replace('/authenticated')
+    }
+  }, [userData, router])
 
   useEffect(() => {
     const fetchContent = async () => {
@@ -50,46 +54,46 @@ export default function HomePage() {
     fetchContent()
   }, [])
 
+  if (userData) return null
+
   return (
     <Box>
-      {!userData && <LearnAideHeroSection />}
-
-      {userData && reLearningCourse && reLearningCourse.length > 0 && (
+      <LearnAideHeroSection />
+      {reLearningCourse && reLearningCourse.length > 0 && (
         <CoursesWithProgress loading={loading} reLearningCourse={reLearningCourse} />
       )}
+      (
+      <>
+        <FeatureDisplay
+          title='Learn Cloud Computing Step by Step'
+          description='Build strong cloud fundamentals through structured video lessons designed for beginners and advanced learners. Practice your understanding instantly with interactive quizzes after each lesson to reinforce concepts and track your progress.'
+          imageSrc='/images/video-learning.png'
+          imageAlt='LearnAide Platform'
+          direction='left'
+          imagePosition='left'
+        />
 
-      {!userData && (
-        <>
-          <FeatureDisplay
-            title='Learn Cloud Computing Step by Step'
-            description='Build strong cloud fundamentals through structured video lessons designed for beginners and advanced learners. Practice your understanding instantly with interactive quizzes after each lesson to reinforce concepts and track your progress.'
-            imageSrc='/images/video-learning.png'
-            imageAlt='LearnAide Platform'
-            direction='left'
-            imagePosition='left'
-          />
-
-          <FeatureDisplay
-            title='Practice on Real AWS Environments'
-            description='Move beyond theory by deploying and managing real cloud infrastructure inside secure AWS sandbox environments.
+        <FeatureDisplay
+          title='Practice on Real AWS Environments'
+          description='Move beyond theory by deploying and managing real cloud infrastructure inside secure AWS sandbox environments.
 Gain practical experience with modern cloud services used by real companies and engineering teams.'
-            imageSrc='/images/lab.png'
-            imageAlt='LearnAide Platform'
-            direction='right'
-            imagePosition='right'
-          />
+          imageSrc='/images/lab.png'
+          imageAlt='LearnAide Platform'
+          direction='right'
+          imagePosition='right'
+        />
 
-          <FeatureDisplay
-            title='Learn Faster with an AI-Powered Assistant'
-            description='Get instant support from an intelligent AI chatbot that helps answer course questions, explains technical concepts, and assists with troubleshooting.
+        <FeatureDisplay
+          title='Learn Faster with an AI-Powered Assistant'
+          description='Get instant support from an intelligent AI chatbot that helps answer course questions, explains technical concepts, and assists with troubleshooting.
 Automatically generate personalized study schedules based on your learning goals and available time.'
-            imageSrc='/images/chat.png'
-            imageAlt='LearnAide Platform'
-            direction='left'
-            imagePosition='left'
-          />
-        </>
-      )}
+          imageSrc='/images/chat.png'
+          imageAlt='LearnAide Platform'
+          direction='left'
+          imagePosition='left'
+        />
+      </>
+      )
       <CourseCategories />
       <Box
         sx={{

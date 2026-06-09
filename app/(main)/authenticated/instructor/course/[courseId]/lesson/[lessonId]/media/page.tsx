@@ -64,6 +64,8 @@ interface ConfirmState {
   onConfirm: () => Promise<void>
 }
 
+type LessonResourceLoadingSource = 'initial' | 'video' | 'documents' | null
+
 const closedConfirm: ConfirmState = {
   open: false,
   title: '',
@@ -79,28 +81,31 @@ function useLessonResources(
   openConfirm: (file: FileResource) => void
 ) {
   const [resources, setResources] = useState<LessonResources>(emptyLessonResources)
-  const [loading, setLoading] = useState(false)
+  const [loadingSource, setLoadingSource] = useState<LessonResourceLoadingSource>('initial')
   const [deletingId, setDeletingId] = useState<string | number | null>(null)
   const { showAlert } = useAlert()
 
-  const refresh = useCallback(async () => {
-    if (!lessonId) return
-    setLoading(true)
-    try {
-      const response = await getFilesByChapterItemId(lessonId)
-      if (response.success) {
-        setResources(response.data ?? emptyLessonResources)
-      } else {
+  const refresh = useCallback(
+    async (source: Exclude<LessonResourceLoadingSource, null> = 'initial') => {
+      if (!lessonId) return
+      setLoadingSource(source)
+      try {
+        const response = await getFilesByChapterItemId(lessonId)
+        if (response.success) {
+          setResources(response.data ?? emptyLessonResources)
+        } else {
+          setResources(emptyLessonResources)
+          showAlert(response.message || 'Cannot load lesson files', 'error')
+        }
+      } catch (err: any) {
         setResources(emptyLessonResources)
-        showAlert(response.message || 'Cannot load lesson files', 'error')
+        showAlert(err?.message || 'Cannot connect to server', 'error')
+      } finally {
+        setLoadingSource(null)
       }
-    } catch (err: any) {
-      setResources(emptyLessonResources)
-      showAlert(err?.message || 'Cannot connect to server', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [lessonId, showAlert])
+    },
+    [lessonId, showAlert]
+  )
 
   useEffect(() => {
     refresh()
@@ -116,7 +121,7 @@ function useLessonResources(
           showAlert(response.message || 'Delete failed', 'error')
           return
         }
-        await refresh()
+        await refresh(file.type === 'video' ? 'video' : 'documents')
       } catch (err: any) {
         showAlert(err?.message || 'Delete failed', 'error')
       } finally {
@@ -129,7 +134,7 @@ function useLessonResources(
   // Chỉ mở modal — không tự xóa
   const deleteResource = useCallback((file: FileResource) => openConfirm(file), [openConfirm])
 
-  return { resources, loading, deletingId, refresh, deleteResource, confirmDelete }
+  return { resources, loadingSource, deletingId, refresh, deleteResource, confirmDelete }
 }
 
 // ─── Existing file row ────────────────────────────────────────────────────────
@@ -202,7 +207,7 @@ function VideoSection({
   courseId,
   lessonId,
   resources,
-  loading,
+  loadingSource,
   deletingId,
   refresh,
   deleteResource
@@ -210,9 +215,9 @@ function VideoSection({
   courseId: string
   lessonId: string
   resources: LessonResources
-  loading: boolean
+  loadingSource: LessonResourceLoadingSource
   deletingId: string | number | null
-  refresh: () => void
+  refresh: (source?: Exclude<LessonResourceLoadingSource, null>) => Promise<void>
   deleteResource: (file: FileResource) => void
 }) {
   const { state, upload, resume, cancel } = useMultipartUploadVideo(courseId, lessonId)
@@ -221,7 +226,7 @@ function VideoSection({
 
   useEffect(() => {
     if (previousStatusRef.current !== 'ready' && state.status === 'ready') {
-      refresh()
+      refresh('video')
     }
     previousStatusRef.current = state.status
   }, [state.status, refresh])
@@ -238,6 +243,7 @@ function VideoSection({
   }
 
   const isActive = state.status === 'uploading' || state.status === 'processing'
+  const isLoading = loadingSource === 'initial' || loadingSource === 'video'
 
   return (
     <Box sx={sectionSx}>
@@ -262,7 +268,7 @@ function VideoSection({
             }}
             variant='outlined'
           />
-          <IconButton size='small' onClick={refresh} sx={{ color: '#64748b' }}>
+          <IconButton size='small' onClick={() => refresh('video')} sx={{ color: '#64748b' }}>
             <RefreshCw size={15} />
           </IconButton>
           <Button
@@ -286,9 +292,9 @@ function VideoSection({
         </Box>
       </Box>
 
-      {loading && <LinearProgress sx={{ mb: 2, borderRadius: 999, height: 4 }} />}
+      {isLoading && <LinearProgress sx={{ mb: 2, borderRadius: 999, height: 4 }} />}
 
-      {!loading && resources.video.length > 0 && (
+      {!isLoading && resources.video.length > 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2.5 }}>
           {resources.video.map((file) => (
             <ExistingFileRow key={file.id} file={file} deletingId={deletingId} onDelete={deleteResource} />
@@ -336,7 +342,7 @@ function DocumentsSection({
   courseId,
   lessonId,
   resources,
-  loading,
+  loadingSource,
   deletingId,
   refresh,
   deleteResource
@@ -344,9 +350,9 @@ function DocumentsSection({
   courseId: string
   lessonId: string
   resources: LessonResources
-  loading: boolean
+  loadingSource: LessonResourceLoadingSource
   deletingId: string | number | null
-  refresh: () => void
+  refresh: (source?: Exclude<LessonResourceLoadingSource, null>) => Promise<void>
   deleteResource: (file: FileResource) => void
 }) {
   const { documents, addFiles, retry, remove } = useUploadDocuments(courseId, lessonId)
@@ -354,7 +360,7 @@ function DocumentsSection({
 
   useEffect(() => {
     const doneCount = documents.filter((doc) => doc.status === 'done').length
-    if (doneCount > previousDoneCountRef.current) refresh()
+    if (doneCount > previousDoneCountRef.current) refresh('documents')
     previousDoneCountRef.current = doneCount
   }, [documents, refresh])
 
@@ -365,6 +371,7 @@ function DocumentsSection({
   }
 
   const existingDocs = [...resources.document, ...resources.image]
+  const isLoading = loadingSource === 'initial' || loadingSource === 'documents'
 
   return (
     <Box sx={sectionSx}>
@@ -377,7 +384,7 @@ function DocumentsSection({
           <Typography sx={{ fontSize: '0.75rem', color: '#64748b' }}>PDF only · Multiple files allowed</Typography>
         </Box>
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton size='small' onClick={refresh} sx={{ color: '#64748b' }}>
+          <IconButton size='small' onClick={() => refresh('documents')} sx={{ color: '#64748b' }}>
             <RefreshCw size={15} />
           </IconButton>
           <Button
@@ -400,9 +407,9 @@ function DocumentsSection({
         </Box>
       </Box>
 
-      {loading && <LinearProgress sx={{ mb: 2, borderRadius: 999, height: 4 }} />}
+      {isLoading && <LinearProgress sx={{ mb: 2, borderRadius: 999, height: 4 }} />}
 
-      {!loading && existingDocs.length > 0 && (
+      {!isLoading && existingDocs.length > 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2.5 }}>
           {existingDocs.map((file) => (
             <ExistingFileRow key={file.id} file={file} deletingId={deletingId} onDelete={deleteResource} />
@@ -410,9 +417,9 @@ function DocumentsSection({
         </Box>
       )}
 
-      {!loading && existingDocs.length > 0 && documents.length > 0 && <Divider sx={{ mb: 2.5 }} />}
+      {!isLoading && existingDocs.length > 0 && documents.length > 0 && <Divider sx={{ mb: 2.5 }} />}
 
-      {documents.length === 0 && !loading && existingDocs.length === 0 && (
+      {documents.length === 0 && !isLoading && existingDocs.length === 0 && (
         <Box
           sx={{
             py: 4,
@@ -506,7 +513,7 @@ export default function LessonMediaPage() {
   // confirmDelete sẽ được truyền vào sau khi hook trả về
   const openConfirmRef = useRef<(file: FileResource) => void>(() => {})
 
-  const { resources, loading, deletingId, refresh, deleteResource, confirmDelete } = useLessonResources(
+  const { resources, loadingSource, deletingId, refresh, deleteResource, confirmDelete } = useLessonResources(
     lessonId,
     (file) => openConfirmRef.current(file)
   )
@@ -568,7 +575,7 @@ export default function LessonMediaPage() {
             courseId={courseId}
             lessonId={lessonId}
             resources={resources}
-            loading={loading}
+            loadingSource={loadingSource}
             deletingId={deletingId}
             refresh={refresh}
             deleteResource={deleteResource}
@@ -577,7 +584,7 @@ export default function LessonMediaPage() {
             courseId={courseId}
             lessonId={lessonId}
             resources={resources}
-            loading={loading}
+            loadingSource={loadingSource}
             deletingId={deletingId}
             refresh={refresh}
             deleteResource={deleteResource}
