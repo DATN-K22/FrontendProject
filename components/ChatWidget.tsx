@@ -257,15 +257,28 @@ function extractApprovalIdFromParts(parts: Part[]): string | undefined {
   for (const part of parts) {
     if (part.kind !== 'data') continue
     if (part.data.name !== 'request_schedule_approval') continue
-    if (!isRecord(part.data.response)) continue
 
-    const response = part.data.response
-    const approvalId =
-      typeof response.approval_id === 'string'
-        ? response.approval_id
-        : typeof response.approvalId === 'string'
-          ? response.approvalId
-          : undefined
+    let approvalId: string | undefined
+
+    if (isRecord(part.data.response)) {
+      const response = part.data.response
+      approvalId =
+        typeof response.approval_id === 'string'
+          ? response.approval_id
+          : typeof response.approvalId === 'string'
+            ? response.approvalId
+            : undefined
+    }
+
+    if (!approvalId && isRecord(part.data.args)) {
+      const args = part.data.args
+      approvalId =
+        typeof args.approval_id === 'string'
+          ? args.approval_id
+          : typeof args.approvalId === 'string'
+            ? args.approvalId
+            : undefined
+    }
 
     if (approvalId) return approvalId
   }
@@ -1012,8 +1025,9 @@ export default function ChatWidget({
           (m): m is Extract<ChatMessage, { role: 'assistant'; pendingApproval?: PendingApproval }> =>
             m.role === 'assistant' && !!m.pendingApproval
         )?.pendingApproval
-      const decisionText = activePendingApproval?.approvalId
-        ? `${decision} ${activePendingApproval.approvalId}`
+      const approvalIdToUse = activePendingApproval?.approvalId || activePendingApproval?.functionCallId
+      const decisionText = approvalIdToUse
+        ? `${decision} ${approvalIdToUse}`
         : decision
 
       let extraParts: Part[] | undefined = undefined
