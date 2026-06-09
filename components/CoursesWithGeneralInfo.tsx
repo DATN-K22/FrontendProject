@@ -334,7 +334,7 @@ export default function CoursesWithGeneralInfo({
                             color: '#FFD600'
                           }}
                         >
-                          {item.price === 0 ? `0 ${item.currency}` : `${item.price.toLocaleString()}`}
+                          {item.price === 0 ? 'Free' : `${item.price.toLocaleString('en-US')} VND`}
                         </Typography>
                       )}
 
