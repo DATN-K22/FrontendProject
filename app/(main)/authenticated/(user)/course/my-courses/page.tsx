@@ -191,42 +191,69 @@ export default function MyCoursesPage() {
   }
 
   const goToCourseDetail = (courseId: string) => router.push(`/authenticated/course/${courseId}`)
-
   async function handleSubmit(data: CreateCourseDto | UpdateCourseDto) {
     if (!isTeacher) return
+
     if (editingCourse) {
       const updateData = { ...(data as UpdateCourseDto) }
       delete (updateData as any).owner_id
+
       Object.keys(updateData).forEach((key) => {
         const value = (updateData as any)[key]
         if (value === '' || value === undefined) delete (updateData as any)[key]
       })
+
       if (!editingCourse.id) return
+
       const updated = await update(editingCourse.id, updateData)
+
       if (updated) {
         setTeachingCourses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
         setModalOpen(false)
-        showAlert('Cập nhật khóa học thành công', 'success', { vertical: 'bottom', horizontal: 'left' })
+
+        showAlert('Course updated successfully', 'success', {
+          vertical: 'bottom',
+          horizontal: 'left'
+        })
       }
+
       return
     }
-    const created = await create({ ...(data as CreateCourseDto), owner_id: userId })
+
+    const created = await create({
+      ...(data as CreateCourseDto),
+      owner_id: userId
+    })
+
     if (created) {
       setTeachingCourses((prev) => [created, ...prev])
       setModalOpen(false)
-      showAlert('Tạo khóa học thành công', 'success', { vertical: 'bottom', horizontal: 'left' })
+
+      showAlert('Course created successfully', 'success', {
+        vertical: 'bottom',
+        horizontal: 'left'
+      })
     }
   }
 
   async function handleDelete() {
     if (!deletingCourse) return
+
     const ok = await remove(deletingCourse.id)
+
     if (ok) {
       setTeachingCourses((prev) => prev.filter((c) => c.id !== deletingCourse.id))
       setDeleteOpen(false)
-      showAlert('Đã xóa khóa học', 'success', { vertical: 'bottom', horizontal: 'left' })
+
+      showAlert('Course deleted successfully', 'success', {
+        vertical: 'bottom',
+        horizontal: 'left'
+      })
     } else {
-      showAlert('Xóa thất bại', 'error', { vertical: 'bottom', horizontal: 'left' })
+      showAlert('Failed to delete course', 'error', {
+        vertical: 'bottom',
+        horizontal: 'left'
+      })
     }
   }
 
