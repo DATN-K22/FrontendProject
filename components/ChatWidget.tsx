@@ -90,15 +90,15 @@ function normalizeProposedChanges(value: unknown): ScheduleChange[] {
 type Part =
   | { kind: 'text'; text: string }
   | {
-      kind: 'data'
-      data: {
-        id: string
-        name: string
-        args?: Record<string, unknown>
-        response?: Record<string, unknown>
-      }
-      metadata: { adk_type: string; adk_is_long_running?: boolean }
+    kind: 'data'
+    data: {
+      id: string
+      name: string
+      args?: Record<string, unknown>
+      response?: Record<string, unknown>
     }
+    metadata: { adk_type: string; adk_is_long_running?: boolean }
+  }
 
 interface A2AMessage {
   kind: 'message'
@@ -1045,7 +1045,7 @@ export default function ChatWidget({
 
       try {
         // Must send taskId to resume the suspended long-running tool
-        const parsed = await postToAgent(decisionText, localTaskId, extraParts)
+        const parsed = await postToAgent(decisionText, localTaskId)
         handleResponse(parsed)
       } catch {
         setMessages((prev) => [
@@ -1162,11 +1162,10 @@ export default function ChatWidget({
                         <div className='space-y-1'>
                           {rows.map((item) => (
                             <button
-                              className={`w-full rounded-xl px-3 py-2.5 text-left transition-all duration-150 ${
-                                item.sessionId === contextId
+                              className={`w-full rounded-xl px-3 py-2.5 text-left transition-all duration-150 ${item.sessionId === contextId
                                   ? 'bg-[#252641]/8 border border-[#252641]/15'
                                   : 'hover:bg-gray-50 border border-transparent'
-                              }`}
+                                }`}
                               key={item.sessionId}
                               onClick={() => void loadConversation(item)}
                               type='button'
@@ -1215,26 +1214,26 @@ export default function ChatWidget({
                         className={
                           msg.role === 'assistant'
                             ? [
-                                'rounded-[20px] rounded-tl-[4px]',
-                                'border-l-[3px] border-l-[#FFD600]',
-                                'bg-white px-4 py-3',
-                                'text-[#252641] shadow-[0_2px_12px_rgba(37,38,65,0.07)]',
-                                // ── table overrides ──────────────────────────────
-                                '[&_[data-streamdown=table]]:w-full [&_[data-streamdown=table]]:border-collapse [&_[data-streamdown=table]]:rounded-xl [&_[data-streamdown=table]]:overflow-hidden [&_[data-streamdown=table]]:border [&_[data-streamdown=table]]:border-gray-200 [&_[data-streamdown=table]]:text-sm',
-                                '[&_[data-streamdown=table-header]]:!bg-[#252641]',
-                                '[&_[data-streamdown=table-header-cell]]:!text-white [&_[data-streamdown=table-header-cell]]:!font-semibold [&_[data-streamdown=table-header-cell]]:px-4 [&_[data-streamdown=table-header-cell]]:py-2.5 [&_[data-streamdown=table-header-cell]]:!text-xs [&_[data-streamdown=table-header-cell]]:tracking-wide [&_[data-streamdown=table-header-cell]]:uppercase',
-                                '[&_[data-streamdown=table-body]]:!bg-transparent',
-                                '[&_[data-streamdown=table-row]:nth-child(even)]:bg-[#f8f8fb]',
-                                '[&_[data-streamdown=table-row]:nth-child(odd)]:bg-white',
-                                '[&_[data-streamdown=table-cell]]:!bg-transparent [&_[data-streamdown=table-cell]]:px-4 [&_[data-streamdown=table-cell]]:py-3 [&_[data-streamdown=table-cell]]:text-[#252641] [&_[data-streamdown=table-cell]]:align-top [&_[data-streamdown=table-cell]]:leading-snug',
-                                // ── typography ───────────────────────────────────
-                                '[&_p]:leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0',
-                                '[&_strong]:font-semibold [&_strong]:text-[#252641]',
-                                '[&_code]:rounded [&_code]:bg-[#f0f0f5] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_code]:font-mono [&_code]:text-[#252641]',
-                                '[&_pre]:rounded-xl [&_pre]:bg-[#1e1f3a] [&_pre]:p-4 [&_pre]:text-xs [&_pre]:text-gray-200 [&_pre]:overflow-x-auto',
-                                '[&_ul]:ml-4 [&_ul]:space-y-1 [&_ol]:ml-4 [&_ol]:space-y-1',
-                                '[&_li]:leading-relaxed'
-                              ].join(' ')
+                              'rounded-[20px] rounded-tl-[4px]',
+                              'border-l-[3px] border-l-[#FFD600]',
+                              'bg-white px-4 py-3',
+                              'text-[#252641] shadow-[0_2px_12px_rgba(37,38,65,0.07)]',
+                              // ── table overrides ──────────────────────────────
+                              '[&_[data-streamdown=table]]:w-full [&_[data-streamdown=table]]:border-collapse [&_[data-streamdown=table]]:rounded-xl [&_[data-streamdown=table]]:overflow-hidden [&_[data-streamdown=table]]:border [&_[data-streamdown=table]]:border-gray-200 [&_[data-streamdown=table]]:text-sm',
+                              '[&_[data-streamdown=table-header]]:!bg-[#252641]',
+                              '[&_[data-streamdown=table-header-cell]]:!text-white [&_[data-streamdown=table-header-cell]]:!font-semibold [&_[data-streamdown=table-header-cell]]:px-4 [&_[data-streamdown=table-header-cell]]:py-2.5 [&_[data-streamdown=table-header-cell]]:!text-xs [&_[data-streamdown=table-header-cell]]:tracking-wide [&_[data-streamdown=table-header-cell]]:uppercase',
+                              '[&_[data-streamdown=table-body]]:!bg-transparent',
+                              '[&_[data-streamdown=table-row]:nth-child(even)]:bg-[#f8f8fb]',
+                              '[&_[data-streamdown=table-row]:nth-child(odd)]:bg-white',
+                              '[&_[data-streamdown=table-cell]]:!bg-transparent [&_[data-streamdown=table-cell]]:px-4 [&_[data-streamdown=table-cell]]:py-3 [&_[data-streamdown=table-cell]]:text-[#252641] [&_[data-streamdown=table-cell]]:align-top [&_[data-streamdown=table-cell]]:leading-snug',
+                              // ── typography ───────────────────────────────────
+                              '[&_p]:leading-relaxed [&_p]:mb-2 [&_p:last-child]:mb-0',
+                              '[&_strong]:font-semibold [&_strong]:text-[#252641]',
+                              '[&_code]:rounded [&_code]:bg-[#f0f0f5] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_code]:font-mono [&_code]:text-[#252641]',
+                              '[&_pre]:rounded-xl [&_pre]:bg-[#1e1f3a] [&_pre]:p-4 [&_pre]:text-xs [&_pre]:text-gray-200 [&_pre]:overflow-x-auto',
+                              '[&_ul]:ml-4 [&_ul]:space-y-1 [&_ol]:ml-4 [&_ol]:space-y-1',
+                              '[&_li]:leading-relaxed'
+                            ].join(' ')
                             : 'rounded-[20px] rounded-tr-[4px] bg-[#252641] px-4 py-3 text-white shadow-[0_2px_12px_rgba(37,38,65,0.2)]'
                         }
                       >
