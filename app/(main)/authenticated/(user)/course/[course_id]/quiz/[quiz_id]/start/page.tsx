@@ -576,6 +576,37 @@ export default function QuizStart() {
                   <Stack spacing={1.5}>
                     {question.options.map((option, index) => {
                       const selected = selectedOptionId === option.id
+                      const isCorrectOption = hasFeedback && feedback?.correctOptionId === option.id
+                      const isWrongSelected = hasFeedback && selected && !feedback?.isCorrect
+
+                      // Compute styles based on feedback state
+                      let borderColor = QUIZ_COLORS.border
+                      let backgroundColor = '#fff'
+                      let boxShadow = 'none'
+                      if (hasFeedback) {
+                        if (isCorrectOption) {
+                          borderColor = 'rgba(34, 197, 94, 0.6)'
+                          backgroundColor = 'rgba(34, 197, 94, 0.08)'
+                          boxShadow = '0 4px 16px rgba(34, 197, 94, 0.15)'
+                        } else if (isWrongSelected) {
+                          borderColor = 'rgba(239, 68, 68, 0.6)'
+                          backgroundColor = 'rgba(239, 68, 68, 0.07)'
+                          boxShadow = '0 4px 16px rgba(239, 68, 68, 0.12)'
+                        }
+                      } else if (selected) {
+                        borderColor = QUIZ_COLORS.primaryDeep
+                        backgroundColor = 'rgba(255, 215, 0, 0.14)'
+                        boxShadow = '0 8px 24px rgba(255, 215, 0, 0.18)'
+                      }
+
+                      let badgeBg = selected ? QUIZ_COLORS.primary : 'rgba(15, 23, 42, 0.05)'
+                      if (hasFeedback) {
+                        if (isCorrectOption) badgeBg = '#22c55e'
+                        else if (isWrongSelected) badgeBg = '#ef4444'
+                        else badgeBg = 'rgba(15, 23, 42, 0.05)'
+                      }
+                      const badgeColor = hasFeedback && (isCorrectOption || isWrongSelected) ? '#fff' : QUIZ_COLORS.text
+
                       return (
                         <Button
                           key={option.id}
@@ -590,19 +621,28 @@ export default function QuizStart() {
                             px: 2.25,
                             py: 1.75,
                             borderRadius: 4,
-                            borderColor: selected ? QUIZ_COLORS.primaryDeep : QUIZ_COLORS.border,
-                            backgroundColor: selected ? 'rgba(255, 215, 0, 0.14)' : '#fff',
+                            borderColor,
+                            backgroundColor,
                             color: QUIZ_COLORS.text,
                             fontWeight: 600,
-                            boxShadow: selected ? '0 8px 24px rgba(255, 215, 0, 0.18)' : 'none',
+                            boxShadow,
                             transition: 'all 0.2s',
-                            '&:hover': {
-                              borderColor: QUIZ_COLORS.primaryDeep,
-                              backgroundColor: 'rgba(255, 215, 0, 0.10)'
+                            '&:hover': !hasFeedback
+                              ? {
+                                  borderColor: QUIZ_COLORS.primaryDeep,
+                                  backgroundColor: 'rgba(255, 215, 0, 0.10)'
+                                }
+                              : {},
+                            // Keep colors visible when disabled (after feedback shown)
+                            '&.Mui-disabled': {
+                              borderColor,
+                              backgroundColor,
+                              color: QUIZ_COLORS.text,
+                              opacity: 1
                             }
                           }}
                         >
-                          <Stack direction='row' spacing={1.5} alignItems='flex-start'>
+                          <Stack direction='row' spacing={1.5} alignItems='flex-start' sx={{ width: '100%' }}>
                             <Box
                               sx={{
                                 width: 30,
@@ -610,17 +650,36 @@ export default function QuizStart() {
                                 borderRadius: '50%',
                                 display: 'grid',
                                 placeItems: 'center',
-                                backgroundColor: selected ? QUIZ_COLORS.primary : 'rgba(15, 23, 42, 0.05)',
-                                color: QUIZ_COLORS.text,
+                                backgroundColor: badgeBg,
+                                color: badgeColor,
                                 flexShrink: 0,
-                                fontWeight: 800
+                                fontWeight: 800,
+                                transition: 'all 0.2s'
                               }}
                             >
                               {String.fromCharCode(65 + index)}
                             </Box>
-                            <Typography sx={{ lineHeight: 1.7, color: QUIZ_COLORS.text }}>
-                              {option.optionText}
-                            </Typography>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography
+                                sx={{
+                                  lineHeight: 1.7,
+                                  color: QUIZ_COLORS.text,
+                                  fontWeight: isCorrectOption ? 700 : 600
+                                }}
+                              >
+                                {option.optionText}
+                              </Typography>
+                              {hasFeedback && isCorrectOption && (
+                                <Typography variant='caption' sx={{ color: '#16a34a', fontWeight: 700 }}>
+                                  ✓ Đáp án đúng
+                                </Typography>
+                              )}
+                              {hasFeedback && isWrongSelected && (
+                                <Typography variant='caption' sx={{ color: '#dc2626', fontWeight: 700 }}>
+                                  ✗ Lựa chọn của bạn — sai
+                                </Typography>
+                              )}
+                            </Box>
                           </Stack>
                         </Button>
                       )
@@ -645,7 +704,7 @@ export default function QuizStart() {
                             <WarningAmber sx={{ color: '#dc2626' }} />
                           )}
                           <Typography sx={{ fontWeight: 800, color: QUIZ_COLORS.text }}>
-                            Feedback for question {feedbackQuestion.id}
+                            {feedback?.isCorrect ? 'Correct!' : 'Incorrect'}
                           </Typography>
                         </Stack>
                         <Typography sx={{ color: QUIZ_COLORS.muted, lineHeight: 1.75 }}>
@@ -666,6 +725,8 @@ export default function QuizStart() {
                                 optionIndex >= 0
                                   ? `Option ${String.fromCharCode(65 + optionIndex)}`
                                   : `Option ${item.optionId}`
+                              const isThisCorrect = item.optionId === feedback?.correctOptionId
+                              const isThisWrongSelected = item.optionId === selectedOptionId && !feedback?.isCorrect
 
                               return (
                                 <Box
@@ -673,13 +734,24 @@ export default function QuizStart() {
                                   sx={{
                                     display: 'flex',
                                     gap: 1.5,
-                                    alignItems: 'flex-start'
+                                    alignItems: 'flex-start',
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    background: isThisCorrect
+                                      ? 'rgba(34, 197, 94, 0.07)'
+                                      : isThisWrongSelected
+                                        ? 'rgba(239, 68, 68, 0.06)'
+                                        : 'transparent'
                                   }}
                                 >
                                   <RadioButtonCheckedIcon
                                     sx={{
                                       fontSize: 18,
-                                      color: 'black',
+                                      color: isThisCorrect
+                                        ? '#16a34a'
+                                        : isThisWrongSelected
+                                          ? '#dc2626'
+                                          : QUIZ_COLORS.muted,
                                       mt: 0.2
                                     }}
                                   />
@@ -687,12 +759,18 @@ export default function QuizStart() {
                                     <Typography
                                       variant='body2'
                                       sx={{
-                                        color: QUIZ_COLORS.text,
+                                        color: isThisCorrect
+                                          ? '#16a34a'
+                                          : isThisWrongSelected
+                                            ? '#dc2626'
+                                            : QUIZ_COLORS.text,
                                         fontWeight: 700
                                       }}
                                     >
                                       {optionLabel}
                                       {optionText ? `: ${optionText}` : ''}
+                                      {isThisCorrect && ' ✓'}
+                                      {isThisWrongSelected && ' ✗'}
                                     </Typography>
                                     <Typography
                                       variant='body2'

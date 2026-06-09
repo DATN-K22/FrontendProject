@@ -425,17 +425,6 @@ export default function LabDetail() {
                       }
                     }}
                   />
-                  <Typography
-                    variant='caption'
-                    sx={{
-                      mt: 0.75,
-                      display: 'block',
-                      color: loadingLease ? 'text.secondary' : 'success.main',
-                      fontWeight: 600
-                    }}
-                  >
-                    {loadingLease ? 'Đang kiểm tra lease...' : 'Lease đã sẵn sàng'}
-                  </Typography>
                 </Box>
 
                 <Typography variant='body2' color='text.secondary' sx={{ mb: 3, lineHeight: 1.6 }}>
