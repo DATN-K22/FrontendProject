@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -10,10 +10,12 @@ import {
   Button,
   MenuItem,
   Typography,
-  CircularProgress
+  CircularProgress,
+  LinearProgress
 } from '@mui/material'
-import { X } from 'lucide-react'
-import type { CreateCourseDto, UpdateCourseDto } from '@/api/courses/types'
+import { Camera, Upload, X } from 'lucide-react'
+import type { CreateCourseDto, UpdateCourseDto, FileResourceType } from '@/api/courses/types'
+import { useUploadFile } from '@/hooks/useFiles'
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
@@ -25,7 +27,8 @@ interface CourseModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (data: CreateCourseDto | UpdateCourseDto) => Promise<void>
-  editingCourse?: CreateCourseDto | UpdateCourseDto | null // if set → edit mode
+  editingCourse?: CreateCourseDto | UpdateCourseDto | null
+  ownerId?: string
   loading?: boolean
   error?: string | null
 }
@@ -40,11 +43,22 @@ const EMPTY: CreateCourseDto = {
   status: 'draft'
 }
 
-export default function CourseModal({ open, onClose, onSubmit, editingCourse, loading, error }: CourseModalProps) {
+export default function CourseModal({
+  open,
+  onClose,
+  onSubmit,
+  editingCourse,
+  ownerId,
+  loading,
+  error
+}: CourseModalProps) {
   const isEdit = !!editingCourse
   const [form, setForm] = useState<CreateCourseDto>(EMPTY)
+  const [thumbnailPreview, setThumbnailPreview] = useState('')
+  const [thumbnailName, setThumbnailName] = useState('')
+  const [thumbnailError, setThumbnailError] = useState('')
+  const { upload, uploading, progress } = useUploadFile()
 
-  // Populate form when editing
   useEffect(() => {
     if (editingCourse) {
       setForm({
@@ -56,17 +70,75 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
         price: editingCourse.price ?? '',
         status: (editingCourse.status as CreateCourseDto['status']) ?? 'draft'
       })
+      setThumbnailPreview(editingCourse.thumbnail_url ?? '')
+      setThumbnailName('')
+      setThumbnailError('')
     } else {
       setForm(EMPTY)
+      setThumbnailPreview('')
+      setThumbnailName('')
+      setThumbnailError('')
     }
   }, [editingCourse, open])
 
   function set(field: keyof CreateCourseDto, value: string) {
-    setForm((f) => ({ ...f, [field]: value }))
+    setForm((current) => ({ ...current, [field]: value }))
   }
 
   async function handleSubmit() {
     await onSubmit(form)
+  }
+
+  async function handleThumbnailChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) return
+
+    const uploadContextId = String(editingCourse?.id ?? ownerId ?? '').trim()
+    if (!uploadContextId) {
+      setThumbnailError('Missing course context for thumbnail upload.')
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setThumbnailError('Please choose an image file.')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setThumbnailError('Maximum image size is 5MB.')
+      return
+    }
+
+    setThumbnailError('')
+    setThumbnailName(file.name)
+    setThumbnailPreview(URL.createObjectURL(file))
+
+    const result = await upload(file, {
+      title: file.name,
+      type: 'image' as FileResourceType,
+      lesson_id: 'course-thumbnail',
+      course_id: uploadContextId
+    })
+
+    const uploadedUrl =
+      (result as any)?.link ??
+      (result as any)?.thumb ??
+      (result as any)?.url ??
+      (result as any)?.path ??
+      (result as any)?.data?.link ??
+      (result as any)?.data?.thumb ??
+      (result as any)?.data?.url ??
+      ''
+
+    if (!uploadedUrl) {
+      setThumbnailError('Thumbnail uploaded but no URL was returned.')
+      return
+    }
+
+    set('thumbnail_url', uploadedUrl)
+    setThumbnailPreview(uploadedUrl)
   }
 
   const fieldSx = {
@@ -80,6 +152,19 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
     '& .MuiInputLabel-root': { fontSize: '0.875rem' },
     '& .MuiInputLabel-root.Mui-focused': { color: '#2563eb' }
   }
+
+  const uploadBtnSx = {
+    borderRadius: '10px',
+    textTransform: 'none',
+    fontWeight: 700,
+    px: 2.5,
+    boxShadow: 'none',
+    border: '1.5px solid #e2e8f0',
+    color: '#374151',
+    '&:hover': { backgroundColor: '#f8fafc', borderColor: '#cbd5e1' }
+  }
+
+  const isBusy = loading || uploading
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth='sm' fullWidth PaperProps={{ sx: { borderRadius: '16px', p: 0 } }}>
@@ -97,6 +182,77 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
 
       <DialogContent sx={{ px: 3, py: 0 }}>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>Thumbnail</Typography>
+            <Box
+              sx={{
+                border: '1.5px dashed #cbd5e1',
+                borderRadius: '14px',
+                p: 2,
+                display: 'flex',
+                gap: 2,
+                alignItems: 'center',
+                bgcolor: '#f8fafc'
+              }}
+            >
+              <Box
+                sx={{
+                  width: 96,
+                  height: 64,
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  bgcolor: '#e2e8f0',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {thumbnailPreview ? (
+                  <Box
+                    component='img'
+                    src={thumbnailPreview}
+                    alt='Thumbnail preview'
+                    sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <Camera size={20} color='#64748b' />
+                )}
+              </Box>
+
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>
+                  {thumbnailName || 'Choose an image file'}
+                </Typography>
+                <Typography sx={{ fontSize: '0.78rem', color: '#64748b', mt: 0.25 }}>
+                  PNG, JPG, WEBP up to 5MB. The uploaded URL is stored in the existing request payload.
+                </Typography>
+              </Box>
+
+              <Button
+                component='label'
+                variant='outlined'
+                sx={uploadBtnSx}
+                startIcon={<Upload size={14} />}
+                disabled={isBusy}
+              >
+                Upload
+                <input type='file' hidden accept='image/*' onChange={handleThumbnailChange} />
+              </Button>
+            </Box>
+
+            {uploading && (
+              <LinearProgress variant='determinate' value={progress} sx={{ borderRadius: 999, height: 4 }} />
+            )}
+            {(thumbnailError || error) && (
+              <Box
+                sx={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', px: 2, py: 1.5 }}
+              >
+                <Typography sx={{ fontSize: '0.8rem', color: '#dc2626' }}>{thumbnailError || error}</Typography>
+              </Box>
+            )}
+          </Box>
+
           <TextField
             label='Title *'
             value={form.title}
@@ -122,9 +278,9 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
               fullWidth
               sx={fieldSx}
             >
-              {STATUS_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value} sx={{ fontSize: '0.875rem' }}>
-                  {o.label}
+              {STATUS_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value} sx={{ fontSize: '0.875rem' }}>
+                  {option.label}
                 </MenuItem>
               ))}
             </TextField>
@@ -149,21 +305,6 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
             rows={4}
             sx={fieldSx}
           />
-
-          <TextField
-            label='Thumbnail URL'
-            value={form.thumbnail_url}
-            onChange={(e) => set('thumbnail_url', e.target.value)}
-            fullWidth
-            placeholder='https://...'
-            sx={fieldSx}
-          />
-
-          {error && (
-            <Box sx={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', px: 2, py: 1.5 }}>
-              <Typography sx={{ fontSize: '0.8rem', color: '#dc2626' }}>{error}</Typography>
-            </Box>
-          )}
         </Box>
       </DialogContent>
 
@@ -184,7 +325,7 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
         </Button>
         <Button
           onClick={handleSubmit}
-          disabled={loading || !form.title || !form.price}
+          disabled={isBusy || !form.title || !form.price}
           variant='contained'
           sx={{
             borderRadius: '10px',
@@ -197,7 +338,7 @@ export default function CourseModal({ open, onClose, onSubmit, editingCourse, lo
             '&:disabled': { backgroundColor: '#e2e8f0', color: '#94a3b8' }
           }}
         >
-          {loading ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : isEdit ? 'Save Changes' : 'Create Course'}
+          {isBusy ? <CircularProgress size={16} sx={{ color: '#fff' }} /> : isEdit ? 'Save Changes' : 'Create Course'}
         </Button>
       </DialogActions>
     </Dialog>

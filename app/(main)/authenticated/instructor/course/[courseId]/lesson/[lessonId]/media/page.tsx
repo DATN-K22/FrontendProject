@@ -326,12 +326,6 @@ function VideoSection({
           />
         </Box>
       )}
-
-      {state.file && (
-        <Typography sx={{ fontSize: '0.78rem', color: '#64748b', mt: 1 }}>
-          📄 {state.file.name} ({(state.file.size / 1024 / 1024).toFixed(1)} MB)
-        </Typography>
-      )}
     </Box>
   )
 }

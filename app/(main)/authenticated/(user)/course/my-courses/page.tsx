@@ -305,6 +305,7 @@ export default function MyCoursesPage() {
             onClose={() => setModalOpen(false)}
             onSubmit={handleSubmit}
             editingCourse={editingCourse}
+            ownerId={userId}
             loading={createLoading || updateLoading}
             error={createError || updateError}
           />

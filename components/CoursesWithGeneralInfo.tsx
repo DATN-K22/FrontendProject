@@ -103,8 +103,7 @@ export default function CoursesWithGeneralInfo({
       ref={setItemRef(0)}
       sx={{
         transition: `transform ${durationMs}ms ${easing}, opacity 240ms linear`,
-        ...getItemStyle(0),
-        background: 'white'
+        ...getItemStyle(0)
       }}
     >
       <Grid container spacing={{ xs: 2, md: 3 }} columns={{ xs: 4, sm: 8, md: 12 }}>
