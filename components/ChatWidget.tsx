@@ -262,12 +262,37 @@ function extractApprovalIdFromParts(parts: Part[]): string | undefined {
 
     if (isRecord(part.data.response)) {
       const response = part.data.response
-      approvalId =
+      let extracted: string | undefined =
         typeof response.approval_id === 'string'
           ? response.approval_id
           : typeof response.approvalId === 'string'
             ? response.approvalId
             : undefined
+
+      if (!extracted && isRecord(response.result)) {
+        extracted =
+          typeof response.result.approval_id === 'string'
+            ? response.result.approval_id
+            : typeof response.result.approvalId === 'string'
+              ? response.result.approvalId
+              : undefined
+      }
+
+      if (!extracted && typeof response.result === 'string') {
+        try {
+          const parsed = JSON.parse(response.result)
+          if (isRecord(parsed)) {
+            extracted =
+              typeof parsed.approval_id === 'string'
+                ? parsed.approval_id
+                : typeof parsed.approvalId === 'string'
+                  ? parsed.approvalId
+                  : undefined
+          }
+        } catch {}
+      }
+
+      approvalId = extracted
     }
 
     if (!approvalId && isRecord(part.data.args)) {
