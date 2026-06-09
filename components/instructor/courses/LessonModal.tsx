@@ -22,6 +22,7 @@ import {
 } from '@mui/material'
 import { X, PlayCircle, FlaskConical, HelpCircle, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import api from '@/api/api'
+import SafeHtml from '@/components/SafeHtml'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -463,9 +464,45 @@ const CoreForm = memo(
           onChange={set('long_description')}
           fullWidth
           multiline
-          rows={3}
+          rows={8}
+          placeholder='Write in Markdown, like a README...'
           sx={fieldSx}
         />
+
+        <Box
+          sx={{
+            border: '1px solid #e2e8f0',
+            bgcolor: '#f8fafc',
+            borderRadius: '10px',
+            px: 2,
+            py: 1.5
+          }}
+        >
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', mb: 0.5 }}>Live preview</Typography>
+          <Typography sx={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6, mb: 1 }}>
+            README-style markdown is supported, including headings, bullet lists, bold text, code blocks, and links.
+          </Typography>
+          <Box
+            sx={{
+              border: '1px solid #e2e8f0',
+              borderRadius: '10px',
+              bgcolor: '#fff',
+              px: 2,
+              py: 1.5,
+              minHeight: 160,
+              maxHeight: 360,
+              overflow: 'auto'
+            }}
+          >
+            {form.long_description?.trim() ? (
+              <SafeHtml html={form.long_description} />
+            ) : (
+              <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                Preview will appear here as you type.
+              </Typography>
+            )}
+          </Box>
+        </Box>
       </Box>
     )
   }

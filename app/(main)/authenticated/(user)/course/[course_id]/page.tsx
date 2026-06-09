@@ -156,8 +156,24 @@ export default function CourseDetail() {
   const { update: updateLesson, loading: updatingLesson, error: updateLessonError } = useUpdateLesson()
   const { remove: removeLesson, loading: deletingLesson } = useDeleteLesson()
   const { updateLessonOrder, loading: updatingLessonOrder, error: updateLessonOrderError } = useUpdateLessonOrder()
-
+  const [isPolling, setIsPolling] = useState(false)
   const { showAlert } = useAlert()
+
+  // ── Enroll job polling ───────────────────────────────────────────────────────
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    setIsPolling(false)
+  }, [])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => stopPolling()
+  }, [stopPolling])
 
   const fetchCourse = useCallback(async () => {
     if (!courseId) return
@@ -179,6 +195,50 @@ export default function CourseDetail() {
       setLoading(false)
     }
   }, [courseId])
+
+  const startEnrollPolling = useCallback(() => {
+    if (!courseId || !userData?.id) return
+    if (pollingRef.current) return
+    setIsPolling(true)
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await api.get(`/media/payment/enroll-job/status/${courseId}/${userData.id}`)
+        const jobData = res.data?.data
+        console.log('Polled enroll job status:', jobData)
+        if (!jobData) {
+          stopPolling()
+          console.warn('No enroll job data found, stopping polling')
+          return
+        }
+
+        // Job DONE → reload course info then stop
+        if (jobData.done || jobData.enrollJobStatus === 'DONE') {
+          stopPolling()
+          showAlert('Enrollment successful! Welcome to the course.', 'success', {
+            vertical: 'bottom',
+            horizontal: 'left'
+          })
+          fetchCourse()
+          return
+        }
+
+        // Status is PENDING → keep polling
+      } catch {
+        stopPolling()
+      }
+    }, 3000)
+  }, [courseId, userData?.id, stopPolling, showAlert, fetchCourse])
+
+  // After course data loads, start polling if user is not yet enrolled
+  useEffect(() => {
+    if (!course) return
+    if (course.isEnrolled) {
+      stopPolling()
+      return
+    }
+    // Not enrolled → check if there's a pending enroll job
+    startEnrollPolling()
+  }, [course?.isEnrolled])
 
   useEffect(() => {
     fetchCourse()
@@ -907,6 +967,7 @@ export default function CourseDetail() {
                   {course.price ? `$${course.price}` : 'Free'}
                 </Typography>
               )}
+
               <Button
                 variant='contained'
                 fullWidth
@@ -921,7 +982,7 @@ export default function CourseDetail() {
                   })
                   router.replace(`/authenticated/course/${courseId}/payment/confirm?${params}`)
                 }}
-                disabled={course?.isEnrolled === true}
+                disabled={course?.isEnrolled === true || isPolling}
                 sx={{
                   bgcolor: '#ffd700',
                   color: '#000',
@@ -931,7 +992,13 @@ export default function CourseDetail() {
                   '&:hover': { bgcolor: '#ffed4e' }
                 }}
               >
-                {course?.isEnrolled ? (isTeacher ? course.price : 'Already Enrolled') : 'Enroll now'}
+                {course?.isEnrolled
+                  ? isTeacher
+                    ? course.price
+                    : 'Already Enrolled'
+                  : isPolling
+                    ? 'Processing…'
+                    : 'Enroll now'}
               </Button>
               <Divider />
             </Paper>

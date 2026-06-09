@@ -134,4 +134,8 @@
   html {
     @apply font-sans;
   }
+   [data-streamdown="table-header"] {
+    background-color: oklch(0 0 0 / 8%);
+  }
+
 }

@@ -1,4 +1,5 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import {
   Dialog,
@@ -14,13 +15,21 @@ import {
   LinearProgress
 } from '@mui/material'
 import { Camera, Upload, X } from 'lucide-react'
-import type { CreateCourseDto, UpdateCourseDto, FileResourceType } from '@/api/courses/types'
+import type { CourseLevel, CreateCourseDto, UpdateCourseDto, FileResourceType } from '@/api/courses/types'
+import SafeHtml from '@/components/SafeHtml'
 import { useUploadFile } from '@/hooks/useFiles'
 
 const STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
   { value: 'published', label: 'Published' },
   { value: 'archived', label: 'Archived' }
+]
+
+const COURSE_LEVEL_OPTIONS: { value: CourseLevel; label: string }[] = [
+  { value: 'Beginner', label: 'Beginner' },
+  { value: 'Intermediate', label: 'Intermediate' },
+  { value: 'Advanced', label: 'Advanced' },
+  { value: 'AllLevels', label: 'All Levels' }
 ]
 
 interface CourseModalProps {
@@ -40,7 +49,8 @@ const EMPTY: CreateCourseDto = {
   long_description: '',
   thumbnail_url: '',
   price: '',
-  status: 'draft'
+  status: 'draft',
+  course_level: 'AllLevels'
 }
 
 export default function CourseModal({
@@ -68,7 +78,8 @@ export default function CourseModal({
         long_description: editingCourse.long_description ?? '',
         thumbnail_url: editingCourse.thumbnail_url ?? '',
         price: editingCourse.price ?? '',
-        status: (editingCourse.status as CreateCourseDto['status']) ?? 'draft'
+        status: (editingCourse.status as CreateCourseDto['status']) ?? 'draft',
+        course_level: (editingCourse.course_level as CourseLevel) ?? 'AllLevels'
       })
       setThumbnailPreview(editingCourse.thumbnail_url ?? '')
       setThumbnailName('')
@@ -287,6 +298,21 @@ export default function CourseModal({
           </Box>
 
           <TextField
+            select
+            label='Course Level'
+            value={form.course_level ?? 'AllLevels'}
+            onChange={(e) => set('course_level', e.target.value)}
+            fullWidth
+            sx={fieldSx}
+          >
+            {COURSE_LEVEL_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value} sx={{ fontSize: '0.875rem' }}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
             label='Short Description'
             value={form.short_description}
             onChange={(e) => set('short_description', e.target.value)}
@@ -302,9 +328,35 @@ export default function CourseModal({
             onChange={(e) => set('long_description', e.target.value)}
             fullWidth
             multiline
-            rows={4}
+            rows={8}
+            placeholder='Write in Markdown, like a README...'
             sx={fieldSx}
           />
+
+          <Box sx={{ border: '1px solid #e2e8f0', bgcolor: '#f8fafc', borderRadius: '10px', px: 2, py: 1.5 }}>
+            <Typography sx={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', mb: 0.5 }}>Preview</Typography>
+
+            <Box
+              sx={{
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                bgcolor: '#fff',
+                px: 2,
+                py: 1.5,
+                minHeight: 160,
+                maxHeight: 360,
+                overflow: 'auto'
+              }}
+            >
+              {form.long_description?.trim() ? (
+                <SafeHtml html={form.long_description} />
+              ) : (
+                <Typography sx={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                  Preview will appear here as you type.
+                </Typography>
+              )}
+            </Box>
+          </Box>
         </Box>
       </DialogContent>
 
