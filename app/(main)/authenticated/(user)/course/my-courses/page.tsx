@@ -2,7 +2,7 @@
 
 import CoursesWithGeneralInfo, { RecommendedCourse } from '@/components/CoursesWithGeneralInfo'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { Box, Pagination, Typography, Skeleton, Stack, Button, Alert, Snackbar } from '@mui/material'
+import { Box, Pagination, Typography, Skeleton, Stack, Button, Alert } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { authUtils } from '@/utils/auth'
@@ -17,6 +17,7 @@ import {
 import CourseModal from '@/components/instructor/courses/CourseModal'
 import DeleteDialog from '@/components/instructor/courses/DeleteDialog'
 import { useState } from 'react'
+import { useAlert } from '@/components/Alert'
 
 const ITEMS_PER_PAGE = 12
 
@@ -126,7 +127,7 @@ export default function MyCoursesPage() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-
+  const { showAlert } = useAlert()
   const currentOffset = Math.max(1, Number(searchParams.get('offset') ?? '1'))
 
   const { userData } = authUtils.getAuth()
@@ -137,11 +138,6 @@ export default function MyCoursesPage() {
   const [editingCourse, setEditingCourse] = useState<CreateCourseDto | UpdateCourseDto | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deletingCourse, setDeletingCourse] = useState<RecommendedCourse | null>(null)
-  const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
-    open: false,
-    message: '',
-    severity: 'success'
-  })
 
   const teachingOffset = isTeacher ? currentOffset : 1
   const studentOffset = !isTeacher ? currentOffset : 1
@@ -171,11 +167,7 @@ export default function MyCoursesPage() {
   }))
 
   const displayCourses = isTeacher ? mappedTeachingCourses : activeCourses
-
   const isEmpty = !activeLoading && activeCourses.length === 0
-
-  const showToast = (message: string, severity: 'success' | 'error' = 'success') =>
-    setToast({ open: true, message, severity })
 
   const handlePageChange = (_: React.ChangeEvent<unknown>, page: number) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -187,14 +179,17 @@ export default function MyCoursesPage() {
     setEditingCourse(null)
     setModalOpen(true)
   }
+
   const openEdit = (course: CreateCourseDto | UpdateCourseDto) => {
     setEditingCourse(course)
     setModalOpen(true)
   }
+
   const openDelete = (courseId: string) => {
     setDeletingCourse(teachingCourses.find((c) => c.id === courseId) ?? null)
     setDeleteOpen(true)
   }
+
   const goToCourseDetail = (courseId: string) => router.push(`/authenticated/course/${courseId}`)
 
   async function handleSubmit(data: CreateCourseDto | UpdateCourseDto) {
@@ -211,7 +206,7 @@ export default function MyCoursesPage() {
       if (updated) {
         setTeachingCourses((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
         setModalOpen(false)
-        showToast('Cập nhật khóa học thành công')
+        showAlert('Cập nhật khóa học thành công', 'success', { vertical: 'bottom', horizontal: 'left' })
       }
       return
     }
@@ -219,7 +214,7 @@ export default function MyCoursesPage() {
     if (created) {
       setTeachingCourses((prev) => [created, ...prev])
       setModalOpen(false)
-      showToast('Tạo khóa học thành công')
+      showAlert('Tạo khóa học thành công', 'success', { vertical: 'bottom', horizontal: 'left' })
     }
   }
 
@@ -229,9 +224,9 @@ export default function MyCoursesPage() {
     if (ok) {
       setTeachingCourses((prev) => prev.filter((c) => c.id !== deletingCourse.id))
       setDeleteOpen(false)
-      showToast('Đã xóa khóa học')
+      showAlert('Đã xóa khóa học', 'success', { vertical: 'bottom', horizontal: 'left' })
     } else {
-      showToast('Xóa thất bại', 'error')
+      showAlert('Xóa thất bại', 'error', { vertical: 'bottom', horizontal: 'left' })
     }
   }
 
@@ -316,20 +311,6 @@ export default function MyCoursesPage() {
             loading={deleteLoading}
             courseName={deletingCourse?.title}
           />
-          <Snackbar
-            open={toast.open}
-            autoHideDuration={3500}
-            onClose={() => setToast((t) => ({ ...t, open: false }))}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          >
-            <Alert
-              severity={toast.severity}
-              sx={{ borderRadius: 3, fontWeight: 600 }}
-              onClose={() => setToast((t) => ({ ...t, open: false }))}
-            >
-              {toast.message}
-            </Alert>
-          </Snackbar>
         </>
       )}
     </PageWrapper>
