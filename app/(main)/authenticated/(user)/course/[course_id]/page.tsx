@@ -964,7 +964,7 @@ export default function CourseDetail() {
             <Paper elevation={0} sx={{ p: 3, borderRadius: 2, mb: 3 }}>
               {!course.isEnrolled && (
                 <Typography variant='h4' fontWeight='bold' gutterBottom>
-                  {course.price ? `$${course.price}` : 'Free'}
+                  {course.price ? `${Number(course.price).toLocaleString('en-US')} VND` : 'Free'}
                 </Typography>
               )}
 
