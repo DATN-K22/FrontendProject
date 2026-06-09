@@ -125,31 +125,6 @@ export default function CourseModal({
     setThumbnailError('')
     setThumbnailName(file.name)
     setThumbnailPreview(URL.createObjectURL(file))
-
-    const result = await upload(file, {
-      title: file.name,
-      type: 'image' as FileResourceType,
-      lesson_id: 'course-thumbnail',
-      course_id: uploadContextId
-    })
-
-    const uploadedUrl =
-      (result as any)?.link ??
-      (result as any)?.thumb ??
-      (result as any)?.url ??
-      (result as any)?.path ??
-      (result as any)?.data?.link ??
-      (result as any)?.data?.thumb ??
-      (result as any)?.data?.url ??
-      ''
-
-    if (!uploadedUrl) {
-      setThumbnailError('Thumbnail uploaded but no URL was returned.')
-      return
-    }
-
-    set('thumbnail_url', uploadedUrl)
-    setThumbnailPreview(uploadedUrl)
   }
 
   const fieldSx = {
