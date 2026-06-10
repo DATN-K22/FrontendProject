@@ -671,12 +671,12 @@ export default function QuizStart() {
                               </Typography>
                               {hasFeedback && isCorrectOption && (
                                 <Typography variant='caption' sx={{ color: '#16a34a', fontWeight: 700 }}>
-                                  ✓ Đáp án đúng
+                                  ✓ Right answer
                                 </Typography>
                               )}
                               {hasFeedback && isWrongSelected && (
                                 <Typography variant='caption' sx={{ color: '#dc2626', fontWeight: 700 }}>
-                                  ✗ Lựa chọn của bạn — sai
+                                  ✗ Wrong answer
                                 </Typography>
                               )}
                             </Box>
