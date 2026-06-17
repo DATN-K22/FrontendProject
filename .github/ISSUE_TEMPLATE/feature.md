@@ -1,7 +1,6 @@
 ---
 name: Feature Request
 about: Đề xuất tính năng mới cho dự án
-title: '[FEATURE] '
 labels: enhancement, needs-review
 assignees: ''
 ---
